@@ -21,6 +21,14 @@ class IssueBranchNotFoundException(Exception):
         self.detail = self.error_message.format(issue_id = issue_id, error = error)
 
 
+class PullFailedException(Exception):
+
+    error_message = "Fetch and Rebase failed for {branch} branch.\n Detail: {error}"
+
+    def __init__(self, branch, error):
+        self.detail = self.error_message.format(branch = branch, error = error)
+
+
 
 
 
