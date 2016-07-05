@@ -95,12 +95,27 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, unittest.TestCase):
     def get_current_branch(self):
         return local('git rev-parse --abbrev-ref HEAD', capture = True).strip()
 
-    def make_some_change(self):
-        with open(os.path.join(self.scm_url, 'sample.py'), 'w') as sample_file:
+    def get_random_commit_name(self):
+        return "temp_commit_{0}".format(random.randint(1, 1000))
+
+    def make_some_change(self, base_path):
+        with open(os.path.join(base_path, 'sample.py'), 'w') as sample_file:
             sample_file.write("Hello * 10")
 
+    def commit_changes(self, commit_name):
+        local("git commit -am {0}".format(commit_name))
+
+    def change_local_repository(self):
+        commit_name = self.get_random_commit_name()
+
+        with lcd(self.code_directory):
+            self.make_some_change(self.code_directory)
+            self.commit_changes(commit_name)
+
+        return commit_name
+
     def change_remote_repository(self, branch_name = None):
-        commit_name = "temp_commit_{0}".format(random.randint(1, 1000))
+        commit_name = self.get_random_commit_name()
 
         with lcd(self.scm_url):
             initial_branch = self.get_current_branch()
@@ -108,9 +123,9 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, unittest.TestCase):
             if branch_name:
                 local("git checkout {0}".format(branch_name))
 
-            self.make_some_change()
+            self.make_some_change(self.scm_url)
 
-            local("git commit -am {0}".format(commit_name))
+            self.commit_changes(commit_name)
             local("git checkout {0}".format(initial_branch))
 
         return commit_name
@@ -142,6 +157,13 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, unittest.TestCase):
             recent_commit_msgs = local("git log --oneline -2", capture = True)
 
         self.assertIn(commit_name, recent_commit_msgs)
+
+    def test_raises_exception_if_merge_fails(self):
+        local_commit = self.change_local_repository()
+        remote_commit = self.change_remote_repository(self.other_branch)
+
+        with self.assertRaises(Exception):
+            self.repository.merge(self.other_branch)
 
 
 

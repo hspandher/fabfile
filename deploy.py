@@ -156,7 +156,7 @@ class GitRepository(object):
         self.refresh()
 
         with lcd(self.code_directory):
-            local("git merge origin/{0}".format(other_branch))
+            local("git merge --no-edit origin/{0}".format(other_branch))
 
 
 class Deployment(object):
