@@ -126,14 +126,40 @@ def deploy(source_branch, issue_id):
             push(source_branch)
 
 
-class Deployment(object):
+class GitRepository(object):
+
+    @classmethod
+    def clone(cls, scm_url, code_directory):
+        local("mkdir -p {0}".format(code_directory))
+        local("git clone {0} {1}".format(scm_url, code_directory))
+
+        return cls(scm_url, code_directory)
 
     def __init__(self, scm_url, code_directory):
         self.scm_url = scm_url
         self.code_directory = code_directory
+
+    def refresh(self):
+        with lcd(self.code_directory):
+            local("git fetch")
+            local("git rebase")
+
+
+class Deployment(object):
+
+    scm_repository_type = GitRepository
+
+    def __init__(self, code_directory, scm_url, scm_repository_type = None):
+        self.code_directory = code_directory
+        self.scm_url = scm_url
+        self.scm_repository_type = scm_repository_type or self.scm_repository_type
 
     def does_local_repo_exists(self):
         with settings(warn_only = True):
             repo_exists = local("test -d {0}".format(self.code_directory))
 
         return not repo_exists.failed
+
+    def start(self):
+        if not self.does_local_repo_exists():
+            self.scm_repository_type.clone(self.scm_url, self.code_directory)
