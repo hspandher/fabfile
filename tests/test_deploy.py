@@ -1,5 +1,6 @@
 import os
 import unittest
+import random
 from fabric.api import local, settings, env, sudo, lcd
 
 from ..deploy import Deployment, GitRepository
@@ -69,18 +70,25 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, unittest.TestCase):
 
         self.repository = GitRepository.clone(scm_url = self.scm_url, code_directory = self.code_directory)
 
-    def test_refresh_repository(self):
+    def change_remote_repository(self):
+        commit_name = "temp_commit_{0}".format(random.randint(1, 1000))
+
         with open(os.path.join(self.scm_url, 'sample.py'), 'w') as sample_file:
             sample_file.write("Hello * 10")
         with lcd(self.scm_url):
-            local("git commit -am temp_commit")
+            local("git commit -am {0}".format(commit_name))
+
+        return commit_name
+
+    def test_refresh_repository(self):
+        commit_name = self.change_remote_repository()
 
         self.repository.refresh()
 
         with lcd(self.code_directory):
             last_commit_msg = local("git log --oneline -1", capture = True)
 
-        self.assertIn('temp_commit', last_commit_msg)
+        self.assertIn(commit_name, last_commit_msg)
 
 
 
