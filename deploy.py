@@ -129,29 +129,44 @@ def deploy(source_branch, issue_id):
 class GitRepository(object):
 
     @classmethod
-    def clone(cls, scm_url, code_directory):
+    def clone(cls, scm_url, scm_branch, code_directory):
         local("mkdir -p {0}".format(code_directory))
         local("git clone {0} {1}".format(scm_url, code_directory))
 
-        return cls(scm_url, code_directory)
+        return cls(scm_url, scm_branch, code_directory)
 
-    def __init__(self, scm_url, code_directory):
+    def __init__(self, scm_url, scm_branch, code_directory):
         self.scm_url = scm_url
+        self.scm_branch = scm_branch
         self.code_directory = code_directory
+
+        self.checkout_branch(self.scm_branch)
+        self.refresh()
 
     def refresh(self):
         with lcd(self.code_directory):
             local("git fetch")
-            local("git rebase")
+            local("git rebase origin {0}".format(self.scm_branch))
+
+    def checkout_branch(self, branch_name):
+        with lcd(self.code_directory):
+            local("git checkout -f {0}".format(branch_name))
+
+    def merge(self, other_branch):
+        self.refresh()
+
+        with lcd(self.code_directory):
+            local("git merge origin/{0}".format(other_branch))
 
 
 class Deployment(object):
 
     scm_repository_type = GitRepository
 
-    def __init__(self, code_directory, scm_url, scm_repository_type = None):
+    def __init__(self, code_directory, scm_url, scm_branch, scm_repository_type = None):
         self.code_directory = code_directory
         self.scm_url = scm_url
+        self.scm_branch = scm_branch
         self.scm_repository_type = scm_repository_type or self.scm_repository_type
 
     def does_local_repo_exists(self):
@@ -162,4 +177,4 @@ class Deployment(object):
 
     def start(self):
         if not self.does_local_repo_exists():
-            self.scm_repository_type.clone(self.scm_url, self.code_directory)
+            self.scm_repository_type.clone(self.scm_url, self.scm_branch, self.code_directory)

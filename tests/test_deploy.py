@@ -1,6 +1,8 @@
 import os
 import unittest
 import random
+import fudge
+import copy
 from fabric.api import local, settings, env, sudo, lcd
 
 from ..deploy import Deployment, GitRepository
@@ -11,6 +13,7 @@ class TestCleanCodeRepositoryMixin(object):
     code_directory = os.path.join(os.path.dirname(__file__), 'test_deploy_dir/shine')
     remote_directory = os.path.join(os.path.dirname(__file__), 'remote_repo')
     scm_url = remote_directory
+    scm_branch = 'master'
     remote_repo_backup = os.path.join(os.path.dirname(__file__), 'remote_repo_backup')
 
     def tearDown(self):
@@ -32,7 +35,7 @@ class TestDeployment(TestCleanCodeRepositoryMixin, unittest.TestCase):
     def setUp(self):
         super(TestDeployment, self).setUp()
 
-        self.deployment = Deployment(scm_url = self.scm_url, code_directory = self.code_directory)
+        self.deployment = Deployment(code_directory = self.code_directory, scm_url = self.scm_url, scm_branch = 'quality_assurance')
 
     def test_does_local_repo_exists_return_false_if_repo_does_not_exists(self):
         self.assertFalse(self.deployment.does_local_repo_exists())
@@ -50,17 +53,34 @@ class TestDeployment(TestCleanCodeRepositoryMixin, unittest.TestCase):
     def test_allows_changing_scm_repository(self):
         dummy_repository = type('sample', (object, ), {})
 
-        deployment = Deployment(scm_url = self.scm_url, code_directory = self.code_directory, scm_repository_type = dummy_repository)
+        deployment = Deployment(scm_url = self.scm_url, scm_branch = 'master', code_directory = self.code_directory, scm_repository_type = dummy_repository)
 
         self.assertEqual(deployment.scm_repository_type, dummy_repository)
 
 
 class TestGitRepositoryClassMethods(TestCleanCodeRepositoryMixin, unittest.TestCase):
 
+    def setUp(self):
+        self.other_branch = 'quality_assurance'
+
     def test_clone_method_creates_repository(self):
-        repository = GitRepository.clone(scm_url = self.scm_url, code_directory = self.code_directory)
+        repository = GitRepository.clone(scm_url = self.scm_url, scm_branch = self.scm_branch, code_directory = self.code_directory)
 
         self.assertTrue(os.path.exists(self.code_directory))
+
+    def test_automatically_checkout_out_branch_on_initialization(self):
+        repository = GitRepository.clone(scm_url = self.scm_url, scm_branch = self.other_branch, code_directory = self.code_directory)
+
+        with lcd(self.code_directory):
+            current_branch = local("git branch | grep '*'", capture = True)
+
+        self.assertIn(self.other_branch, current_branch)
+
+    @fudge.patch(__name__ + '.' + 'GitRepository.refresh')
+    def test_automatically_refreshes_branch_on_initialization(self, mock_refresh):
+        mock_refresh.expects_call().times_called(1)
+
+        repository = GitRepository.clone(scm_url = self.scm_url, scm_branch = self.other_branch, code_directory = self.code_directory)
 
 
 class TestGitRepository(TestCleanCodeRepositoryMixin, unittest.TestCase):
@@ -68,15 +88,30 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, unittest.TestCase):
     def setUp(self):
         self.scm_url = os.path.join(os.path.dirname(__file__), 'remote_repo')
 
-        self.repository = GitRepository.clone(scm_url = self.scm_url, code_directory = self.code_directory)
+        self.repository = GitRepository.clone(scm_url = self.scm_url, scm_branch = self.scm_branch, code_directory = self.code_directory)
 
-    def change_remote_repository(self):
-        commit_name = "temp_commit_{0}".format(random.randint(1, 1000))
+        self.other_branch = 'quality_assurance'
 
+    def get_current_branch(self):
+        return local('git rev-parse --abbrev-ref HEAD', capture = True).strip()
+
+    def make_some_change(self):
         with open(os.path.join(self.scm_url, 'sample.py'), 'w') as sample_file:
             sample_file.write("Hello * 10")
+
+    def change_remote_repository(self, branch_name = None):
+        commit_name = "temp_commit_{0}".format(random.randint(1, 1000))
+
         with lcd(self.scm_url):
+            initial_branch = self.get_current_branch()
+
+            if branch_name:
+                local("git checkout {0}".format(branch_name))
+
+            self.make_some_change()
+
             local("git commit -am {0}".format(commit_name))
+            local("git checkout {0}".format(initial_branch))
 
         return commit_name
 
@@ -89,6 +124,26 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, unittest.TestCase):
             last_commit_msg = local("git log --oneline -1", capture = True)
 
         self.assertIn(commit_name, last_commit_msg)
+
+    def test_checkout_branch_with_existing_branch(self):
+        self.repository.checkout_branch(self.other_branch)
+
+        with lcd(self.code_directory):
+            current_branch = local("git branch | grep '*'", capture = True)
+
+        self.assertIn(self.other_branch, current_branch)
+
+    def test_merge_another_branch_into_current_branch(self):
+        commit_name = self.change_remote_repository(self.other_branch)
+
+        self.repository.merge(self.other_branch)
+
+        with lcd(self.code_directory):
+            recent_commit_msgs = local("git log --oneline -2", capture = True)
+
+        self.assertIn(commit_name, recent_commit_msgs)
+
+
 
 
 
