@@ -23,12 +23,17 @@ class IssueBranchNotFoundException(Exception):
 
 class PullFailedException(Exception):
 
-    error_message = "Fetch and Rebase failed for {branch} branch.\n Detail: {error}"
+    error_message = "Rebase failed for {branch} branch.\n Detail: {error}"
 
     def __init__(self, branch, error):
         self.detail = self.error_message.format(branch = branch, error = error)
 
 
+class FetchFailedException(Exception):
 
+    error_message = "Fetch failed for {branch} branch.\n Detail: {error}"
+
+    def __init__(self, branch, error):
+        self.detail = self.error_message.format(branch = branch, error = error)
 
 

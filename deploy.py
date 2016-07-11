@@ -166,6 +166,10 @@ class GitRepository(object):
     def _refresh(self):
         try:
             self._fetch()
+        except (BaseException, Exception) as exp:
+            raise exceptions.FetchFailedException(self.scm_branch, exp.message)
+
+        try:
             self._rebase()
         except (BaseException, Exception) as exp:
             raise exceptions.PullFailedException(self.scm_branch, exp.message)

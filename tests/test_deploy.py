@@ -6,7 +6,7 @@ import copy
 from fabric.api import local, settings, env, sudo, lcd
 
 from ..deploy import Deployment, GitRepository
-from ..exceptions import MergeFailedException, PullFailedException
+from ..exceptions import MergeFailedException, PullFailedException, FetchFailedException
 
 
 class TestCleanCodeRepositoryMixin(object):
@@ -149,9 +149,16 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, unittest.TestCase):
 
         self.assertIn(commit_name, last_commit_msg)
 
+    @fudge.patch(__name__ + '.' + 'GitRepository._fetch')
+    def test_raises_exception_if_fetch_fails(self, mock_fetch):
+        mock_fetch.is_callable().raises(SystemExit('Mocked forced fetch failure'))
+
+        with self.assertRaises(FetchFailedException):
+            self.repository.refresh()
+
     @fudge.patch(__name__ + '.' + 'GitRepository._rebase')
-    def test_raises_exception_if_refresh_fails(self, mock_refresh):
-        mock_refresh.is_callable().raises(SystemExit('Mocked forced exit'))
+    def test_raises_exception_if_refresh_fails(self, mock_rebase):
+        mock_rebase.is_callable().raises(SystemExit('Mocked forced exit'))
 
         with self.assertRaises(PullFailedException):
             self.repository.refresh()
