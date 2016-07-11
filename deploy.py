@@ -138,7 +138,7 @@ class GitOperation(object):
     def operate(self):
         try:
             self.act()
-        except (BaseException, Exception) as exp:
+        except SystemExit as exp:
             raise self.failure_exception(**self.get_exception_params(exp))
 
     def get_exception_params(self, exception):
@@ -151,6 +151,14 @@ class FetchOperation(GitOperation):
 
     def act(self):
         local('git fetch')
+
+
+class RebaseOperation(GitOperation):
+
+    failure_exception = exceptions.PullFailedException
+
+    def act(self):
+        local("git rebase origin {0}".format(self.parameters['scm_branch']))
 
 
 class GitRepository(object):
@@ -184,27 +192,14 @@ class GitRepository(object):
         with lcd(self.code_directory):
             self._merge(other_branch)
 
-    def _fetch(self):
-        local("git fetch")
-
-    def _rebase(self):
-        local("git rebase origin {0}".format(self.scm_branch))
-
     def _refresh(self):
-        try:
-            self._fetch()
-        except (BaseException, Exception) as exp:
-            raise exceptions.FetchFailedException(exp.message)
-
-        try:
-            self._rebase()
-        except (BaseException, Exception) as exp:
-            raise exceptions.PullFailedException(self.scm_branch, exp.message)
+        FetchOperation(self.code_directory)
+        RebaseOperation(self.code_directory, scm_branch = self.scm_branch)
 
     def _merge(self, other_branch):
         try:
             local("git merge --no-edit origin/{0}".format(other_branch))
-        except (BaseException, Exception) as exp:
+        except SystemExit as exp:
             raise exceptions.MergeFailedException(self.scm_branch, other_branch, exp.message)
 
 

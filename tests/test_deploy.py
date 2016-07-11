@@ -5,7 +5,7 @@ import fudge
 import copy
 from fabric.api import local, settings, env, sudo, lcd
 
-from ..deploy import Deployment, GitRepository, FetchOperation
+from ..deploy import Deployment, GitRepository, FetchOperation, RebaseOperation
 from ..exceptions import MergeFailedException, PullFailedException, FetchFailedException
 
 
@@ -150,6 +150,25 @@ class TestFetchOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, un
 
         self.assertIn(commit_name, last_commit_msg)
 
+    @fudge.patch(__name__ + '.' + 'FetchOperation.act')
+    def test_raises_exception_if_fetch_fails(self, mock_fetch):
+        mock_fetch.is_callable().raises(SystemExit('Mocked forced fetch failure'))
+
+        with self.assertRaises(FetchFailedException):
+            FetchOperation(code_directory = self.code_directory)
+
+
+class TestRebaseOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, unittest.TestCase):
+
+    def setUp(self):
+        self.scm_url = os.path.join(os.path.dirname(__file__), 'remote_repo')
+        self.repository = GitRepository.clone(scm_url = self.scm_url, scm_branch = self.scm_branch, code_directory = self.code_directory)
+
+        self.rebase_operation = RebaseOperation(code_directory = self.code_directory, scm_branch = self.scm_branch)
+
+    def test_has_failure_exception_set(self):
+        self.assertTrue(self.rebase_operation.failure_exception)
+
 
 class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, unittest.TestCase):
 
@@ -170,14 +189,14 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, uni
 
         self.assertIn(commit_name, last_commit_msg)
 
-    @fudge.patch(__name__ + '.' + 'GitRepository._fetch')
+    @fudge.patch(__name__ + '.' + 'FetchOperation.act')
     def test_raises_exception_if_fetch_fails(self, mock_fetch):
         mock_fetch.is_callable().raises(SystemExit('Mocked forced fetch failure'))
 
         with self.assertRaises(FetchFailedException):
             self.repository.refresh()
 
-    @fudge.patch(__name__ + '.' + 'GitRepository._rebase')
+    @fudge.patch(__name__ + '.' + 'RebaseOperation.act')
     def test_raises_exception_if_refresh_fails(self, mock_rebase):
         mock_rebase.is_callable().raises(SystemExit('Mocked forced exit'))
 

@@ -25,8 +25,8 @@ class PullFailedException(Exception):
 
     error_message = "Rebase failed for {branch} branch.\n Detail: {error}"
 
-    def __init__(self, branch, error):
-        self.detail = self.error_message.format(branch = branch, error = error)
+    def __init__(self, scm_branch, error):
+        self.detail = self.error_message.format(branch = scm_branch, error = error)
 
 
 class FetchFailedException(Exception):
