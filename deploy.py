@@ -126,6 +126,33 @@ def deploy(source_branch, issue_id):
             push(source_branch)
 
 
+class GitOperation(object):
+
+    def __init__(self, code_directory, **parameters):
+        self.code_directory = code_directory
+        self.parameters = parameters
+
+        with lcd(code_directory):
+            self.operate()
+
+    def operate(self):
+        try:
+            self.act()
+        except (BaseException, Exception) as exp:
+            raise self.failure_exception(**self.get_exception_params(exp))
+
+    def get_exception_params(self, exception):
+        return dict(self.parameters, **{'error': exception.message})
+
+
+class FetchOperation(GitOperation):
+
+    failure_exception = exceptions.FetchFailedException
+
+    def act(self):
+        local('git fetch')
+
+
 class GitRepository(object):
 
     @classmethod
@@ -167,7 +194,7 @@ class GitRepository(object):
         try:
             self._fetch()
         except (BaseException, Exception) as exp:
-            raise exceptions.FetchFailedException(self.scm_branch, exp.message)
+            raise exceptions.FetchFailedException(exp.message)
 
         try:
             self._rebase()
