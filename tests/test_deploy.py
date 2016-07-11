@@ -6,6 +6,7 @@ import copy
 from fabric.api import local, settings, env, sudo, lcd
 
 from ..deploy import Deployment, GitRepository
+from ..exceptions import MergeFailedException, PullFailedException
 
 
 class TestCleanCodeRepositoryMixin(object):
@@ -98,6 +99,9 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, unittest.TestCase):
     def get_random_commit_name(self):
         return "temp_commit_{0}".format(random.randint(1, 1000))
 
+    def delete_file(self, base_path):
+        local("rm -Rf {0}".format(os.path.join(base_path, 'sample.py')))
+
     def make_some_change(self, base_path):
         with open(os.path.join(base_path, 'sample.py'), 'w') as sample_file:
             sample_file.write("Hello * 10")
@@ -105,11 +109,12 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, unittest.TestCase):
     def commit_changes(self, commit_name):
         local("git commit -am {0}".format(commit_name))
 
-    def change_local_repository(self):
+    def change_local_repository(self, change_method = None):
         commit_name = self.get_random_commit_name()
 
         with lcd(self.code_directory):
-            self.make_some_change(self.code_directory)
+            change_method = change_method or self.make_some_change
+            change_method(self.code_directory)
             self.commit_changes(commit_name)
 
         return commit_name
@@ -130,6 +135,10 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, unittest.TestCase):
 
         return commit_name
 
+    def make_conflicting_change(self, branch_name = None):
+        self.change_local_repository(change_method = self.delete_file)
+        self.change_remote_repository(branch_name)
+
     def test_refresh_repository(self):
         commit_name = self.change_remote_repository()
 
@@ -139,6 +148,13 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, unittest.TestCase):
             last_commit_msg = local("git log --oneline -1", capture = True)
 
         self.assertIn(commit_name, last_commit_msg)
+
+    @fudge.patch(__name__ + '.' + 'GitRepository._rebase')
+    def test_raises_exception_if_refresh_fails(self, mock_refresh):
+        mock_refresh.is_callable().raises(SystemExit('Mocked forced exit'))
+
+        with self.assertRaises(PullFailedException):
+            self.repository.refresh()
 
     def test_checkout_branch_with_existing_branch(self):
         self.repository.checkout_branch(self.other_branch)
@@ -159,10 +175,9 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, unittest.TestCase):
         self.assertIn(commit_name, recent_commit_msgs)
 
     def test_raises_exception_if_merge_fails(self):
-        local_commit = self.change_local_repository()
-        remote_commit = self.change_remote_repository(self.other_branch)
+        self.make_conflicting_change(self.other_branch)
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(MergeFailedException):
             self.repository.merge(self.other_branch)
 
 

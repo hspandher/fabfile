@@ -145,8 +145,7 @@ class GitRepository(object):
 
     def refresh(self):
         with lcd(self.code_directory):
-            local("git fetch")
-            local("git rebase origin {0}".format(self.scm_branch))
+            self._refresh()
 
     def checkout_branch(self, branch_name):
         with lcd(self.code_directory):
@@ -156,7 +155,26 @@ class GitRepository(object):
         self.refresh()
 
         with lcd(self.code_directory):
+            self._merge(other_branch)
+
+    def _fetch(self):
+        local("git fetch")
+
+    def _rebase(self):
+        local("git rebase origin {0}".format(self.scm_branch))
+
+    def _refresh(self):
+        try:
+            self._fetch()
+            self._rebase()
+        except (BaseException, Exception) as exp:
+            raise exceptions.PullFailedException(self.scm_branch, exp.message)
+
+    def _merge(self, other_branch):
+        try:
             local("git merge --no-edit origin/{0}".format(other_branch))
+        except (BaseException, Exception) as exp:
+            raise exceptions.MergeFailedException(self.scm_branch, other_branch, exp.message)
 
 
 class Deployment(object):
