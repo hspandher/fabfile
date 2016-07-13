@@ -158,7 +158,7 @@ class RebaseOperation(GitOperation):
     failure_exception = exceptions.PullFailedException
 
     def act(self):
-        local("git rebase origin {0}".format(self.parameters['scm_branch']))
+        local("git rebase origin/{0}".format(self.parameters['scm_branch']))
 
 
 class GitRepository(object):

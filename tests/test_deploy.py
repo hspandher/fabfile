@@ -33,6 +33,10 @@ class TestCleanCodeRepositoryMixin(object):
 
 class GitTestingHelperMixin(object):
 
+    def create_local_repo(self):
+        local("mkdir -p {0}".format(self.code_directory))
+        local("git clone {0} {1}".format(self.remote_directory, self.code_directory))
+
     def get_current_branch(self):
         return local('git rev-parse --abbrev-ref HEAD', capture = True).strip()
 
@@ -137,8 +141,7 @@ class TestFetchOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, un
 
     def setUp(self):
         self.scm_url = os.path.join(os.path.dirname(__file__), 'remote_repo')
-
-        self.repository = GitRepository.clone(scm_url = self.scm_url, scm_branch = self.scm_branch, code_directory = self.code_directory)
+        self.create_local_repo()
 
     def test_fetch_operation_updates_origin(self):
         commit_name = self.change_remote_repository()
@@ -162,7 +165,7 @@ class TestRebaseOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, u
 
     def setUp(self):
         self.scm_url = os.path.join(os.path.dirname(__file__), 'remote_repo')
-        self.repository = GitRepository.clone(scm_url = self.scm_url, scm_branch = self.scm_branch, code_directory = self.code_directory)
+        self.create_local_repo()
 
         self.rebase_operation = RebaseOperation(code_directory = self.code_directory, scm_branch = self.scm_branch)
 
