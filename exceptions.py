@@ -9,8 +9,8 @@ class MergeFailedException(Exception):
 
     error_message = "Merge failed when trying to merge {base_branch} with {target_branch}.\nDetail: {error}"
 
-    def __init__(self, base_branch, target_branch, error):
-        self.detail = self.error_message.format(base_branch = base_branch, target_branch = target_branch, error = error)
+    def __init__(self, scm_branch, other_branch, error):
+        self.detail = self.error_message.format(base_branch = scm_branch, target_branch = other_branch, error = error)
 
 
 class IssueBranchNotFoundException(Exception):

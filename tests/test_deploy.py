@@ -5,7 +5,7 @@ import fudge
 import copy
 from fabric.api import local, settings, env, sudo, lcd
 
-from ..deploy import Deployment, GitRepository, FetchOperation, RebaseOperation
+from ..deploy import Deployment, GitRepository, FetchOperation, RebaseOperation, MergeOperation
 from ..exceptions import MergeFailedException, PullFailedException, FetchFailedException
 
 
@@ -15,6 +15,7 @@ class TestCleanCodeRepositoryMixin(object):
     remote_directory = os.path.join(os.path.dirname(__file__), 'remote_repo')
     scm_url = remote_directory
     scm_branch = 'master'
+    other_branch = 'quality_assurance'
     remote_repo_backup = os.path.join(os.path.dirname(__file__), 'remote_repo_backup')
 
     def tearDown(self):
@@ -171,6 +172,18 @@ class TestRebaseOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, u
 
     def test_has_failure_exception_set(self):
         self.assertTrue(self.rebase_operation.failure_exception)
+
+
+class TestMergeOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, unittest.TestCase):
+
+    def setUp(self):
+        self.scm_url = os.path.join(os.path.dirname(__file__), 'remote_repo')
+
+        self.create_local_repo()
+
+    def test_has_failure_exception_set(self):
+        self.merge_operation = MergeOperation(code_directory = self.code_directory, scm_branch = self.scm_branch, other_branch = self.other_branch)
+        self.assertTrue(self.merge_operation.failure_exception)
 
 
 class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, unittest.TestCase):

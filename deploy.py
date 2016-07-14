@@ -161,6 +161,14 @@ class RebaseOperation(GitOperation):
         local("git rebase origin/{0}".format(self.parameters['scm_branch']))
 
 
+class MergeOperation(GitOperation):
+
+    failure_exception = exceptions.MergeFailedException
+
+    def act(self):
+        local("git merge --no-edit origin/{0}".format(self.parameters['other_branch']))
+
+
 class GitRepository(object):
 
     @classmethod
@@ -197,10 +205,11 @@ class GitRepository(object):
         RebaseOperation(self.code_directory, scm_branch = self.scm_branch)
 
     def _merge(self, other_branch):
-        try:
-            local("git merge --no-edit origin/{0}".format(other_branch))
-        except SystemExit as exp:
-            raise exceptions.MergeFailedException(self.scm_branch, other_branch, exp.message)
+        MergeOperation(self.code_directory, scm_branch = self.scm_branch, other_branch = other_branch)
+        # try:
+        #     local("git merge --no-edit origin/{0}".format(other_branch))
+        # except SystemExit as exp:
+        #     raise exceptions.MergeFailedException(self.scm_branch, other_branch, exp.message)
 
 
 class Deployment(object):
