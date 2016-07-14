@@ -5,7 +5,8 @@ import fudge
 import copy
 from fabric.api import local, settings, env, sudo, lcd
 
-from ..deploy import Deployment, GitRepository, FetchOperation, RebaseOperation, MergeOperation, PushOperation
+from ..deploy import Deployment, GitRepository
+from ..operations import FetchOperation, RebaseOperation, MergeOperation, PushOperation
 from ..exceptions import MergeFailedException, PullFailedException, FetchFailedException
 from ..testcases import SimpleTestCase
 
