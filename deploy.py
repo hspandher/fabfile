@@ -139,10 +139,15 @@ class GitOperation(object):
         try:
             self.act()
         except SystemExit as exp:
+            with settings(warn_only = True):
+                self.revert()
             raise self.failure_exception(**self.get_exception_params(exp))
 
     def get_exception_params(self, exception):
         return dict(self.parameters, **{'error': exception.message})
+
+    def revert(self):
+        pass
 
 
 class FetchOperation(GitOperation):
@@ -160,6 +165,9 @@ class RebaseOperation(GitOperation):
     def act(self):
         local("git rebase origin/{0}".format(self.parameters['scm_branch']))
 
+    def revert(self):
+        local('git rebase --abort')
+
 
 class MergeOperation(GitOperation):
 
@@ -167,6 +175,17 @@ class MergeOperation(GitOperation):
 
     def act(self):
         local("git merge --no-edit origin/{0}".format(self.parameters['other_branch']))
+
+    def revert(self):
+        local('git checkout -f')
+
+
+class PushOperation(GitOperation):
+
+    failure_exception = exceptions.PushFailedException
+
+    def act(self):
+        local("git push origin {0}".format(self.parameters['scm_branch']))
 
 
 class GitRepository(object):
@@ -199,6 +218,9 @@ class GitRepository(object):
 
         with lcd(self.code_directory):
             MergeOperation(self.code_directory, scm_branch = self.scm_branch, other_branch = other_branch)
+
+    def push(self):
+        PushOperation(self.code_directory, scm_branch = self.scm_branch)
 
 
 class Deployment(object):

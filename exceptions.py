@@ -37,3 +37,10 @@ class FetchFailedException(Exception):
         self.detail = self.error_message.format(error = error)
 
 
+class PushFailedException(Exception):
+
+    error_message = "Push into remote_branch {branch} failed.\n Detail: {error}"
+
+    def __init__(self, scm_branch, error):
+        self.detail = self.error_message.format(branch = scm_branch, error = error)
+

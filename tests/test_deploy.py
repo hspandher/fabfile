@@ -5,7 +5,7 @@ import fudge
 import copy
 from fabric.api import local, settings, env, sudo, lcd
 
-from ..deploy import Deployment, GitRepository, FetchOperation, RebaseOperation, MergeOperation
+from ..deploy import Deployment, GitRepository, FetchOperation, RebaseOperation, MergeOperation, PushOperation
 from ..exceptions import MergeFailedException, PullFailedException, FetchFailedException
 
 
@@ -18,12 +18,22 @@ class TestCleanCodeRepositoryMixin(object):
     other_branch = 'quality_assurance'
     remote_repo_backup = os.path.join(os.path.dirname(__file__), 'remote_repo_backup')
 
+    def setUp(self):
+        with lcd(self.remote_repo_backup):
+            local('git config --bool core.bare true')
+
+        with lcd(self.remote_directory):
+            local('git config --bool core.bare true')
+
     def tearDown(self):
         required_attrs = ['code_directory', 'remote_directory', 'remote_repo_backup']
 
         for required_attr in required_attrs:
             if not hasattr(self, required_attr):
                 raise AttributeError("Any class that means inheriting TestCleanCodeRepositoryMixin should define `{0}` variable.".format(required_attr))
+
+        with lcd(self.remote_repo_backup):
+            local('git config --bool core.bare false')
 
         local("rm -Rf {0}".format(self.code_directory))
         local("rm -Rf {0}".format(self.remote_directory))
@@ -68,6 +78,7 @@ class GitTestingHelperMixin(object):
         commit_name = self.get_random_commit_name()
 
         with lcd(self.scm_url):
+            local('git config --bool core.bare false')
             initial_branch = self.get_current_branch()
 
             if branch_name:
@@ -77,6 +88,7 @@ class GitTestingHelperMixin(object):
 
             self.commit_changes(commit_name)
             local("git checkout {0}".format(initial_branch))
+            local('git config --bool core.bare true')
 
         return commit_name
 
@@ -116,6 +128,7 @@ class TestDeployment(TestCleanCodeRepositoryMixin, unittest.TestCase):
 class TestGitRepositoryClassMethods(TestCleanCodeRepositoryMixin, unittest.TestCase):
 
     def setUp(self):
+        super(TestGitRepositoryClassMethods, self).setUp()
         self.other_branch = 'quality_assurance'
 
     def test_clone_method_creates_repository(self):
@@ -141,6 +154,8 @@ class TestGitRepositoryClassMethods(TestCleanCodeRepositoryMixin, unittest.TestC
 class TestFetchOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, unittest.TestCase):
 
     def setUp(self):
+        super(TestFetchOperation, self).setUp()
+
         self.scm_url = os.path.join(os.path.dirname(__file__), 'remote_repo')
         self.create_local_repo()
 
@@ -161,10 +176,23 @@ class TestFetchOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, un
         with self.assertRaises(FetchFailedException):
             FetchOperation(code_directory = self.code_directory)
 
+    @fudge.patch(__name__ + '.' + 'FetchOperation.act')
+    @fudge.patch(__name__ + '.' + 'FetchOperation.revert')
+    def test_revert_is_being_called_when_exception_occurs(self, mock_fetch, mock_revert):
+        mock_fetch.expects_call().raises(SystemExit('Mocked forced fetch failure'))
+        mock_revert.expects_call().times_called(1)
+
+        try:
+            FetchOperation(code_directory = self.code_directory)
+        except BaseException:
+            pass
+
 
 class TestRebaseOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, unittest.TestCase):
 
     def setUp(self):
+        super(TestRebaseOperation, self).setUp()
+
         self.scm_url = os.path.join(os.path.dirname(__file__), 'remote_repo')
         self.create_local_repo()
 
@@ -177,6 +205,8 @@ class TestRebaseOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, u
 class TestMergeOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, unittest.TestCase):
 
     def setUp(self):
+        super(TestMergeOperation, self).setUp()
+
         self.scm_url = os.path.join(os.path.dirname(__file__), 'remote_repo')
 
         self.create_local_repo()
@@ -186,9 +216,25 @@ class TestMergeOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, un
         self.assertTrue(self.merge_operation.failure_exception)
 
 
+class TestPushOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, unittest.TestCase):
+
+    def setUp(self):
+        super(TestPushOperation, self).setUp()
+
+        self.scm_url = os.path.join(os.path.dirname(__file__), 'remote_repo')
+
+        self.create_local_repo()
+
+    def test_has_failure_exception_set(self):
+        self.push_operation = PushOperation(code_directory = self.code_directory, scm_branch = self.scm_branch)
+        self.assertTrue(self.push_operation.failure_exception)
+
+
 class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, unittest.TestCase):
 
     def setUp(self):
+        super(TestGitRepository, self).setUp()
+
         self.scm_url = os.path.join(os.path.dirname(__file__), 'remote_repo')
 
         self.repository = GitRepository.clone(scm_url = self.scm_url, scm_branch = self.scm_branch, code_directory = self.code_directory)
@@ -242,6 +288,16 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, uni
 
         with self.assertRaises(MergeFailedException):
             self.repository.merge(self.other_branch)
+
+    def test_push_changes_to_the_remote_repository(self):
+        commit_name = self.change_local_repository()
+
+        self.repository.push()
+
+        with lcd(self.remote_directory):
+            last_commit_msg = local("git log --oneline -1".format(self.scm_branch), capture = True)
+
+        self.assertIn(commit_name, last_commit_msg)
 
 
 
