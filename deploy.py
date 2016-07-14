@@ -132,12 +132,13 @@ class GitOperation(object):
         self.code_directory = code_directory
         self.parameters = parameters
 
-        with lcd(code_directory):
-            self.operate()
+    def __call__(self):
+        with lcd(self.code_directory):
+            return self.operate()
 
     def operate(self):
         try:
-            self.act()
+            return self.act()
         except SystemExit as exp:
             with settings(warn_only = True):
                 self.revert()
@@ -188,6 +189,16 @@ class PushOperation(GitOperation):
         local("git push origin {0}".format(self.parameters['scm_branch']))
 
 
+class BranchNameGuessOperation(GitOperation):
+
+    failure_exception = exceptions.IssueBranchNotFoundException
+
+    def act(self):
+        guess = local("git remote show origin | grep {0}".format(self.parameters['hint']), capture = True)
+
+        return guess.strip().split(' ')[0]
+
+
 class GitRepository(object):
 
     @classmethod
@@ -205,9 +216,12 @@ class GitRepository(object):
         self.checkout_branch(self.scm_branch)
         self.refresh()
 
+    def guess_branch_name(self, hint):
+        return BranchNameGuessOperation(self.code_directory, hint = hint)()
+
     def refresh(self):
-        FetchOperation(self.code_directory)
-        RebaseOperation(self.code_directory, scm_branch = self.scm_branch)
+        FetchOperation(self.code_directory)()
+        RebaseOperation(self.code_directory, scm_branch = self.scm_branch)()
 
     def checkout_branch(self, branch_name):
         with lcd(self.code_directory):
@@ -217,10 +231,10 @@ class GitRepository(object):
         self.refresh()
 
         with lcd(self.code_directory):
-            MergeOperation(self.code_directory, scm_branch = self.scm_branch, other_branch = other_branch)
+            MergeOperation(self.code_directory, scm_branch = self.scm_branch, other_branch = other_branch)()
 
     def push(self):
-        PushOperation(self.code_directory, scm_branch = self.scm_branch)
+        PushOperation(self.code_directory, scm_branch = self.scm_branch)()
 
 
 class Deployment(object):

@@ -9,6 +9,43 @@ from ..deploy import Deployment, GitRepository, FetchOperation, RebaseOperation,
 from ..exceptions import MergeFailedException, PullFailedException, FetchFailedException
 
 
+class SimpleTestCase(unittest.TestCase):
+
+    def __call__(self, result=None):
+        """
+        Wrapper around default __call__ method to perform common Django test
+        set up. This means that user-defined Test Cases aren't required to
+        include a call to super().setUp().
+        """
+        testMethod = getattr(self, self._testMethodName)
+        skipped = (getattr(self.__class__, "__unittest_skip__", False) or
+            getattr(testMethod, "__unittest_skip__", False))
+
+        if not skipped:
+            try:
+                self._pre_setup()
+            except (KeyboardInterrupt, SystemExit):
+                raise
+            except Exception:
+                result.addError(self, sys.exc_info())
+                return
+        super(SimpleTestCase, self).__call__(result)
+        if not skipped:
+            try:
+                self._post_teardown()
+            except (KeyboardInterrupt, SystemExit):
+                raise
+            except Exception:
+                result.addError(self, sys.exc_info())
+                return
+
+    def _pre_setup(self):
+        pass
+
+    def _post_teardown(self):
+        pass
+
+
 class TestCleanCodeRepositoryMixin(object):
 
     code_directory = os.path.join(os.path.dirname(__file__), 'test_deploy_dir/shine')
@@ -18,14 +55,14 @@ class TestCleanCodeRepositoryMixin(object):
     other_branch = 'quality_assurance'
     remote_repo_backup = os.path.join(os.path.dirname(__file__), 'remote_repo_backup')
 
-    def setUp(self):
+    def _pre_setup(self):
         with lcd(self.remote_repo_backup):
             local('git config --bool core.bare true')
 
         with lcd(self.remote_directory):
             local('git config --bool core.bare true')
 
-    def tearDown(self):
+    def _post_teardown(self):
         required_attrs = ['code_directory', 'remote_directory', 'remote_repo_backup']
 
         for required_attr in required_attrs:
@@ -97,11 +134,9 @@ class GitTestingHelperMixin(object):
         self.change_remote_repository(branch_name)
 
 
-class TestDeployment(TestCleanCodeRepositoryMixin, unittest.TestCase):
+class TestDeployment(TestCleanCodeRepositoryMixin, SimpleTestCase):
 
     def setUp(self):
-        super(TestDeployment, self).setUp()
-
         self.deployment = Deployment(code_directory = self.code_directory, scm_url = self.scm_url, scm_branch = 'quality_assurance')
 
     def test_does_local_repo_exists_return_false_if_repo_does_not_exists(self):
@@ -125,10 +160,9 @@ class TestDeployment(TestCleanCodeRepositoryMixin, unittest.TestCase):
         self.assertEqual(deployment.scm_repository_type, dummy_repository)
 
 
-class TestGitRepositoryClassMethods(TestCleanCodeRepositoryMixin, unittest.TestCase):
+class TestGitRepositoryClassMethods(TestCleanCodeRepositoryMixin, SimpleTestCase):
 
     def setUp(self):
-        super(TestGitRepositoryClassMethods, self).setUp()
         self.other_branch = 'quality_assurance'
 
     def test_clone_method_creates_repository(self):
@@ -151,18 +185,16 @@ class TestGitRepositoryClassMethods(TestCleanCodeRepositoryMixin, unittest.TestC
         repository = GitRepository.clone(scm_url = self.scm_url, scm_branch = self.other_branch, code_directory = self.code_directory)
 
 
-class TestFetchOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, unittest.TestCase):
+class TestFetchOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, SimpleTestCase):
 
     def setUp(self):
-        super(TestFetchOperation, self).setUp()
-
         self.scm_url = os.path.join(os.path.dirname(__file__), 'remote_repo')
         self.create_local_repo()
 
     def test_fetch_operation_updates_origin(self):
         commit_name = self.change_remote_repository()
 
-        FetchOperation(code_directory = self.code_directory)
+        FetchOperation(code_directory = self.code_directory)()
 
         with lcd(self.code_directory):
             last_commit_msg = local("git log origin/{} --oneline -1".format(self.scm_branch), capture = True)
@@ -174,7 +206,7 @@ class TestFetchOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, un
         mock_fetch.is_callable().raises(SystemExit('Mocked forced fetch failure'))
 
         with self.assertRaises(FetchFailedException):
-            FetchOperation(code_directory = self.code_directory)
+            FetchOperation(code_directory = self.code_directory)()
 
     @fudge.patch(__name__ + '.' + 'FetchOperation.act')
     @fudge.patch(__name__ + '.' + 'FetchOperation.revert')
@@ -183,58 +215,53 @@ class TestFetchOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, un
         mock_revert.expects_call().times_called(1)
 
         try:
-            FetchOperation(code_directory = self.code_directory)
+            FetchOperation(code_directory = self.code_directory)()
         except BaseException:
             pass
 
 
-class TestRebaseOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, unittest.TestCase):
+class TestRebaseOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, SimpleTestCase):
 
     def setUp(self):
-        super(TestRebaseOperation, self).setUp()
-
         self.scm_url = os.path.join(os.path.dirname(__file__), 'remote_repo')
         self.create_local_repo()
 
         self.rebase_operation = RebaseOperation(code_directory = self.code_directory, scm_branch = self.scm_branch)
+        self.rebase_operation()
 
     def test_has_failure_exception_set(self):
         self.assertTrue(self.rebase_operation.failure_exception)
 
 
-class TestMergeOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, unittest.TestCase):
+class TestMergeOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, SimpleTestCase):
 
     def setUp(self):
-        super(TestMergeOperation, self).setUp()
-
         self.scm_url = os.path.join(os.path.dirname(__file__), 'remote_repo')
 
         self.create_local_repo()
 
     def test_has_failure_exception_set(self):
         self.merge_operation = MergeOperation(code_directory = self.code_directory, scm_branch = self.scm_branch, other_branch = self.other_branch)
+        self.merge_operation()
         self.assertTrue(self.merge_operation.failure_exception)
 
 
-class TestPushOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, unittest.TestCase):
+class TestPushOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, SimpleTestCase):
 
     def setUp(self):
-        super(TestPushOperation, self).setUp()
-
         self.scm_url = os.path.join(os.path.dirname(__file__), 'remote_repo')
 
         self.create_local_repo()
 
     def test_has_failure_exception_set(self):
         self.push_operation = PushOperation(code_directory = self.code_directory, scm_branch = self.scm_branch)
+        self.push_operation()
         self.assertTrue(self.push_operation.failure_exception)
 
 
-class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, unittest.TestCase):
+class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, SimpleTestCase):
 
     def setUp(self):
-        super(TestGitRepository, self).setUp()
-
         self.scm_url = os.path.join(os.path.dirname(__file__), 'remote_repo')
 
         self.repository = GitRepository.clone(scm_url = self.scm_url, scm_branch = self.scm_branch, code_directory = self.code_directory)
@@ -298,6 +325,11 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, uni
             last_commit_msg = local("git log --oneline -1".format(self.scm_branch), capture = True)
 
         self.assertIn(commit_name, last_commit_msg)
+
+    def test_guess_branch_name(self):
+        self.assertEqual(self.repository.guess_branch_name(hint = self.other_branch[-8:-3]), self.other_branch)
+
+
 
 
 

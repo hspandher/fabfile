@@ -17,7 +17,7 @@ class IssueBranchNotFoundException(Exception):
 
     error_message = "No branch found with issue id {issue_id}.\nDetail:- {error}"
 
-    def __init__(self, issue_id, error):
+    def __init__(self, hint, error):
         self.detail = self.error_message.format(issue_id = issue_id, error = error)
 
 
