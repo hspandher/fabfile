@@ -1,0 +1,42 @@
+import sys
+import unittest
+
+
+class SimpleTestCase(unittest.TestCase):
+
+    def __call__(self, result=None):
+        """
+        Wrapper around default __call__ method to perform common Django test
+        set up. This means that user-defined Test Cases aren't required to
+        include a call to super().setUp().
+        """
+        cleanup_successful = self.perform_cleanup(cleanup_method = self._pre_setup)
+        if not cleanup_successful:
+            return
+
+        super(SimpleTestCase, self).__call__(result)
+        self.perform_cleanup(cleanup_method = self._post_teardown)
+
+    def perform_cleanup(self, cleanup_method):
+        testMethod = getattr(self, self._testMethodName)
+        skipped = (getattr(self.__class__, "__unittest_skip__", False) or
+            getattr(testMethod, "__unittest_skip__", False))
+
+        if skipped:
+            return True
+
+        try:
+            cleanup_method()
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except Exception:
+            result.addError(self, sys.exc_info())
+            return False
+
+        return True
+
+    def _pre_setup(self):
+        pass
+
+    def _post_teardown(self):
+        pass

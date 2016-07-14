@@ -7,43 +7,7 @@ from fabric.api import local, settings, env, sudo, lcd
 
 from ..deploy import Deployment, GitRepository, FetchOperation, RebaseOperation, MergeOperation, PushOperation
 from ..exceptions import MergeFailedException, PullFailedException, FetchFailedException
-
-
-class SimpleTestCase(unittest.TestCase):
-
-    def __call__(self, result=None):
-        """
-        Wrapper around default __call__ method to perform common Django test
-        set up. This means that user-defined Test Cases aren't required to
-        include a call to super().setUp().
-        """
-        testMethod = getattr(self, self._testMethodName)
-        skipped = (getattr(self.__class__, "__unittest_skip__", False) or
-            getattr(testMethod, "__unittest_skip__", False))
-
-        if not skipped:
-            try:
-                self._pre_setup()
-            except (KeyboardInterrupt, SystemExit):
-                raise
-            except Exception:
-                result.addError(self, sys.exc_info())
-                return
-        super(SimpleTestCase, self).__call__(result)
-        if not skipped:
-            try:
-                self._post_teardown()
-            except (KeyboardInterrupt, SystemExit):
-                raise
-            except Exception:
-                result.addError(self, sys.exc_info())
-                return
-
-    def _pre_setup(self):
-        pass
-
-    def _post_teardown(self):
-        pass
+from ..testcases import SimpleTestCase
 
 
 class TestCleanCodeRepositoryMixin(object):
