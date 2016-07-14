@@ -187,8 +187,8 @@ class GitRepository(object):
         self.refresh()
 
     def refresh(self):
-        with lcd(self.code_directory):
-            self._refresh()
+        FetchOperation(self.code_directory)
+        RebaseOperation(self.code_directory, scm_branch = self.scm_branch)
 
     def checkout_branch(self, branch_name):
         with lcd(self.code_directory):
@@ -198,18 +198,7 @@ class GitRepository(object):
         self.refresh()
 
         with lcd(self.code_directory):
-            self._merge(other_branch)
-
-    def _refresh(self):
-        FetchOperation(self.code_directory)
-        RebaseOperation(self.code_directory, scm_branch = self.scm_branch)
-
-    def _merge(self, other_branch):
-        MergeOperation(self.code_directory, scm_branch = self.scm_branch, other_branch = other_branch)
-        # try:
-        #     local("git merge --no-edit origin/{0}".format(other_branch))
-        # except SystemExit as exp:
-        #     raise exceptions.MergeFailedException(self.scm_branch, other_branch, exp.message)
+            MergeOperation(self.code_directory, scm_branch = self.scm_branch, other_branch = other_branch)
 
 
 class Deployment(object):
