@@ -191,7 +191,7 @@ class PushOperation(GitOperation):
 class GitRepository(object):
 
     @classmethod
-    def clone(cls, scm_url, scm_branch, code_directory):
+    def clone(cls, scm_url, code_directory, scm_branch):
         local("mkdir -p {0}".format(code_directory))
         local("git clone {0} {1}".format(scm_url, code_directory))
 
@@ -241,4 +241,4 @@ class Deployment(object):
 
     def start(self):
         if not self.does_local_repo_exists():
-            self.scm_repository_type.clone(self.scm_url, self.scm_branch, self.code_directory)
+            self.scm_repository_type.clone(self.scm_url, self.code_directory, scm_branch = self.scm_branch)
