@@ -4,12 +4,15 @@ import unittest
 
 class SimpleTestCase(unittest.TestCase):
 
+    """
+    unittest.TestCase doesn't call `tearDown` method if some exception occurs in
+    `setUp`. This prevents necessary cleanup between tests making them dependent
+    on each other. To overcome that `SimpleTestCase` uses `_pre_setup` and `_post_teardown`
+    methods which would always be called (Well except in some cases like forcefull
+    abort by Keyword interrupt etc.)
+    """
+
     def __call__(self, result=None):
-        """
-        Wrapper around default __call__ method to perform common Django test
-        set up. This means that user-defined Test Cases aren't required to
-        include a call to super().setUp().
-        """
         cleanup_successful = self.perform_cleanup(cleanup_method = self._pre_setup)
         if not cleanup_successful:
             return
