@@ -5,7 +5,7 @@ import fudge
 import copy
 from fabric.api import local, settings, env, sudo, lcd
 
-from ..deploy import Deployment, GitRepository
+from ..deploy import BaseDeployment, GitRepository
 from ..operations import FetchOperation, RebaseOperation, MergeOperation, PushOperation
 from ..exceptions import MergeFailedException, PullFailedException, FetchFailedException
 from ..testcases import SimpleTestCase
@@ -99,10 +99,10 @@ class GitTestingHelperMixin(object):
         self.change_remote_repository(branch_name)
 
 
-class TestDeployment(GitTestingHelperMixin, TestCleanCodeRepositoryMixin, SimpleTestCase):
+class TestBaseDeployment(GitTestingHelperMixin, TestCleanCodeRepositoryMixin, SimpleTestCase):
 
     def setUp(self):
-        self.deployment = Deployment(code_directory = self.code_directory, scm_url = self.scm_url, scm_branch = self.other_branch)
+        self.deployment = BaseDeployment(code_directory = self.code_directory, scm_url = self.scm_url, scm_branch = self.other_branch)
 
     def test_does_local_repo_exists_return_false_if_repo_does_not_exists(self):
         self.assertFalse(self.deployment.does_local_repo_exists())
@@ -120,7 +120,7 @@ class TestDeployment(GitTestingHelperMixin, TestCleanCodeRepositoryMixin, Simple
     def test_allows_changing_scm_repository(self):
         dummy_repository = type('sample', (object, ), {})
 
-        deployment = Deployment(scm_url = self.scm_url, scm_branch = 'master', code_directory = self.code_directory, scm_repository_type = dummy_repository)
+        deployment = BaseDeployment(scm_url = self.scm_url, scm_branch = 'master', code_directory = self.code_directory, scm_repository_type = dummy_repository)
 
         self.assertEqual(deployment.scm_repository_type, dummy_repository)
 
@@ -128,26 +128,11 @@ class TestDeployment(GitTestingHelperMixin, TestCleanCodeRepositoryMixin, Simple
         self.create_local_repo()
         commit_name = self.change_remote_repository(branch_name = self.other_branch)
 
-        Deployment(scm_url = self.scm_url, scm_branch = self.other_branch, code_directory = self.code_directory).start()
+        BaseDeployment(scm_url = self.scm_url, scm_branch = self.other_branch, code_directory = self.code_directory).start()
 
         with lcd(self.code_directory):
             recent_commit_msgs = local("git log --oneline -2", capture = True)
         self.assertIn(commit_name, recent_commit_msgs)
-
-
-class TestDeploymentWithBranchHint(GitTestingHelperMixin, TestCleanCodeRepositoryMixin, SimpleTestCase):
-
-    def setUp(self):
-        self.branch_hint = self.other_branch[-7:-3]
-
-    def test_works_with_branch_hint_as_well(self):
-        deployment = Deployment(code_directory = self.code_directory, scm_url = self.scm_url, branch_hint = self.branch_hint)
-
-        deployment.start()
-
-        self.assertTrue(os.path.exists(self.code_directory))
-        with lcd(self.code_directory):
-            self.assertEqual(self.get_current_branch(), self.other_branch)
 
 
 class TestGitRepositoryClassMethods(TestCleanCodeRepositoryMixin, SimpleTestCase):
@@ -173,14 +158,6 @@ class TestGitRepositoryClassMethods(TestCleanCodeRepositoryMixin, SimpleTestCase
         mock_refresh.expects_call().times_called(1)
 
         repository = GitRepository.clone(scm_url = self.scm_url, scm_branch = self.other_branch, code_directory = self.code_directory)
-
-    def test_raises_error_if_both_scm_branch_and_branch_hint_are_missing(self):
-        with self.assertRaises(AttributeError):
-            GitRepository.clone(code_directory = self.code_directory, scm_url = self.scm_url)
-
-    def test_raises_error_if_both_scm_branch_and_branch_hint_are_provided(self):
-        with self.assertRaises(AttributeError):
-            GitRepository.clone(code_directory = self.code_directory, scm_url = self.scm_url, branch_hint = self.branch_hint, scm_branch = self.other_branch)
 
 
 class TestFetchOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, SimpleTestCase):
@@ -302,7 +279,7 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, Sim
     def test_merge_another_branch_into_current_branch(self):
         commit_name = self.change_remote_repository(self.other_branch)
 
-        self.repository.merge(self.other_branch)
+        self.repository.merge(other_branch = self.other_branch)
 
         with lcd(self.code_directory):
             recent_commit_msgs = local("git log --oneline -2", capture = True)

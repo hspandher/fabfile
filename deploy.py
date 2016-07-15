@@ -131,19 +131,16 @@ def deploy(source_branch, issue_id):
 class GitRepository(object):
 
     @classmethod
-    def clone(cls, code_directory, scm_url, scm_branch = None, branch_hint = None):
+    def clone(cls, code_directory, scm_url, scm_branch):
         local("mkdir -p {0}".format(code_directory))
         local("git clone {0} {1}".format(scm_url, code_directory))
 
-        return cls(code_directory, scm_url, scm_branch, branch_hint)
+        return cls(code_directory, scm_url, scm_branch)
 
-    def __init__(self, code_directory, scm_url, scm_branch = None, branch_hint = None):
-        if not operator.xor(bool(scm_branch), bool(branch_hint)):
-            raise AttributeError("One and only one of the `scm_branch` and `branch_hint` must be provided.")
-
+    def __init__(self, code_directory, scm_url, scm_branch):
         self.code_directory = code_directory
         self.scm_url = scm_url
-        self.scm_branch = scm_branch or self.guess_branch_name(branch_hint)
+        self.scm_branch = scm_branch
 
         self.checkout_branch(self.scm_branch)
         self.refresh()
@@ -169,15 +166,14 @@ class GitRepository(object):
         PushOperation(self.code_directory, scm_branch = self.scm_branch)()
 
 
-class Deployment(object):
+class BaseDeployment(object):
 
     scm_repository_type = GitRepository
 
-    def __init__(self, code_directory, scm_url, scm_branch = None, branch_hint = None, scm_repository_type = None):
+    def __init__(self, code_directory, scm_url, scm_branch, scm_repository_type = None):
         self.code_directory = code_directory
         self.scm_url = scm_url
         self.scm_branch = scm_branch
-        self.branch_hint = branch_hint
         self.scm_repository_type = scm_repository_type or self.scm_repository_type
 
     def does_local_repo_exists(self):
@@ -186,12 +182,14 @@ class Deployment(object):
 
         return not repo_exists.failed
 
-    def start(self):
+    def initialize_repo(self):
         repo_initializer = self.scm_repository_type if self.does_local_repo_exists() else self.scm_repository_type.clone
 
-        repository = repo_initializer(
+        return repo_initializer(
             code_directory = self.code_directory,
             scm_url = self.scm_url,
-            scm_branch =  self.scm_branch,
-            branch_hint = self.branch_hint
+            scm_branch =  self.scm_branch
         )
+
+    def start(self):
+        self.initialize_repo()
