@@ -156,8 +156,10 @@ class GitRepository(object):
         with lcd(self.code_directory):
             local("git checkout -f {0}".format(branch_name))
 
-    def merge(self, other_branch):
+    def merge(self, other_branch = None, other_branch_hint = None):
         self.refresh()
+
+        other_branch = other_branch or self.guess_branch_name(other_branch_hint)
 
         with lcd(self.code_directory):
             MergeOperation(self.code_directory, scm_branch = self.scm_branch, other_branch = other_branch)()
@@ -197,13 +199,14 @@ class BaseDeployment(object):
 
 class BranchMergeDeployment(BaseDeployment):
 
-    def __init__(self, code_directory, scm_url, scm_branch, other_branch, scm_repository_type = None):
+    def __init__(self, code_directory, scm_url, scm_branch, other_branch = None, other_branch_hint = None, scm_repository_type = None):
         super(BranchMergeDeployment, self).__init__(code_directory, scm_url, scm_branch, scm_repository_type)
 
         self.other_branch = other_branch
+        self.other_branch_hint = other_branch_hint
 
     def start(self):
         repository = super(BranchMergeDeployment, self).start()
 
-        repository.merge(other_branch = self.other_branch)
+        repository.merge(other_branch = self.other_branch, other_branch_hint = self.other_branch_hint)
 
