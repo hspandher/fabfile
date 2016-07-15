@@ -252,7 +252,8 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, Sim
     def setUp(self):
         self.scm_url = os.path.join(os.path.dirname(__file__), 'remote_repo')
 
-        self.repository = GitRepository.clone(scm_url = self.scm_url, scm_branch = self.scm_branch, code_directory = self.code_directory)
+        self.create_local_repo()
+        self.repository = GitRepository(scm_url = self.scm_url, scm_branch = self.scm_branch, code_directory = self.code_directory)
 
         self.other_branch = 'quality_assurance'
 
