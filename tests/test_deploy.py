@@ -102,7 +102,7 @@ class GitTestingHelperMixin(object):
 class TestDeployment(TestCleanCodeRepositoryMixin, SimpleTestCase):
 
     def setUp(self):
-        self.deployment = Deployment(code_directory = self.code_directory, scm_url = self.scm_url, scm_branch = 'quality_assurance')
+        self.deployment = Deployment(code_directory = self.code_directory, scm_url = self.scm_url, scm_branch = self.other_branch)
 
     def test_does_local_repo_exists_return_false_if_repo_does_not_exists(self):
         self.assertFalse(self.deployment.does_local_repo_exists())
@@ -123,6 +123,21 @@ class TestDeployment(TestCleanCodeRepositoryMixin, SimpleTestCase):
         deployment = Deployment(scm_url = self.scm_url, scm_branch = 'master', code_directory = self.code_directory, scm_repository_type = dummy_repository)
 
         self.assertEqual(deployment.scm_repository_type, dummy_repository)
+
+
+class TestDeploymentWithBranchHint(GitTestingHelperMixin, TestCleanCodeRepositoryMixin, SimpleTestCase):
+
+    def setUp(self):
+        self.branch_hint = self.other_branch[-7:-3]
+
+    def test_works_with_branch_hint_as_well(self):
+        deployment = Deployment(code_directory = self.code_directory, scm_url = self.scm_url, branch_hint = self.branch_hint)
+
+        deployment.start()
+
+        self.assertTrue(os.path.exists(self.code_directory))
+        with lcd(self.code_directory):
+            self.assertEqual(self.get_current_branch(), self.other_branch)
 
 
 class TestGitRepositoryClassMethods(TestCleanCodeRepositoryMixin, SimpleTestCase):
@@ -148,6 +163,14 @@ class TestGitRepositoryClassMethods(TestCleanCodeRepositoryMixin, SimpleTestCase
         mock_refresh.expects_call().times_called(1)
 
         repository = GitRepository.clone(scm_url = self.scm_url, scm_branch = self.other_branch, code_directory = self.code_directory)
+
+    def test_raises_error_if_both_scm_branch_and_branch_hint_are_missing(self):
+        with self.assertRaises(AttributeError):
+            GitRepository.clone(code_directory = self.code_directory, scm_url = self.scm_url)
+
+    def test_raises_error_if_both_scm_branch_and_branch_hint_are_provided(self):
+        with self.assertRaises(AttributeError):
+            GitRepository.clone(code_directory = self.code_directory, scm_url = self.scm_url, branch_hint = self.branch_hint, scm_branch = self.other_branch)
 
 
 class TestFetchOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, SimpleTestCase):
@@ -292,7 +315,7 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, Sim
         self.assertIn(commit_name, last_commit_msg)
 
     def test_guess_branch_name(self):
-        self.assertEqual(self.repository.guess_branch_name(hint = self.other_branch[-8:-3]), self.other_branch)
+        self.assertEqual(self.repository.guess_branch_name(branch_hint = self.other_branch[-8:-3]), self.other_branch)
 
 
 

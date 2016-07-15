@@ -1,5 +1,6 @@
 # inbuild python imports
 import datetime
+import operator
 import requests
 
 # third party imports
@@ -130,22 +131,25 @@ def deploy(source_branch, issue_id):
 class GitRepository(object):
 
     @classmethod
-    def clone(cls, scm_url, code_directory, scm_branch):
+    def clone(cls, scm_url, code_directory, scm_branch = None, branch_hint = None):
         local("mkdir -p {0}".format(code_directory))
         local("git clone {0} {1}".format(scm_url, code_directory))
 
-        return cls(scm_url, scm_branch, code_directory)
+        return cls(code_directory, scm_url, scm_branch, branch_hint)
 
-    def __init__(self, scm_url, scm_branch, code_directory):
-        self.scm_url = scm_url
-        self.scm_branch = scm_branch
+    def __init__(self, code_directory, scm_url, scm_branch = None, branch_hint = None):
+        if not operator.xor(bool(scm_branch), bool(branch_hint)):
+            raise AttributeError("One and only one of the `scm_branch` and `branch_hint` must be provided.")
+
         self.code_directory = code_directory
+        self.scm_url = scm_url
+        self.scm_branch = scm_branch or self.guess_branch_name(branch_hint)
 
         self.checkout_branch(self.scm_branch)
         self.refresh()
 
-    def guess_branch_name(self, hint):
-        return BranchNameGuessOperation(self.code_directory, hint = hint)()
+    def guess_branch_name(self, branch_hint):
+        return BranchNameGuessOperation(self.code_directory, hint = branch_hint)()
 
     def refresh(self):
         FetchOperation(self.code_directory)()
@@ -169,10 +173,11 @@ class Deployment(object):
 
     scm_repository_type = GitRepository
 
-    def __init__(self, code_directory, scm_url, scm_branch, scm_repository_type = None):
+    def __init__(self, code_directory, scm_url, scm_branch = None, branch_hint = None, scm_repository_type = None):
         self.code_directory = code_directory
         self.scm_url = scm_url
         self.scm_branch = scm_branch
+        self.branch_hint = branch_hint
         self.scm_repository_type = scm_repository_type or self.scm_repository_type
 
     def does_local_repo_exists(self):
@@ -183,4 +188,4 @@ class Deployment(object):
 
     def start(self):
         if not self.does_local_repo_exists():
-            self.scm_repository_type.clone(self.scm_url, self.code_directory, scm_branch = self.scm_branch)
+            self.scm_repository_type.clone(self.scm_url, self.code_directory, scm_branch = self.scm_branch, branch_hint = self.branch_hint)
