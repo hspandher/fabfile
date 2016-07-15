@@ -192,4 +192,18 @@ class BaseDeployment(object):
         )
 
     def start(self):
-        self.initialize_repo()
+        return self.initialize_repo()
+
+
+class BranchMergeDeployment(BaseDeployment):
+
+    def __init__(self, code_directory, scm_url, scm_branch, other_branch, scm_repository_type = None):
+        super(BranchMergeDeployment, self).__init__(code_directory, scm_url, scm_branch, scm_repository_type)
+
+        self.other_branch = other_branch
+
+    def start(self):
+        repository = super(BranchMergeDeployment, self).start()
+
+        repository.merge(other_branch = self.other_branch)
+

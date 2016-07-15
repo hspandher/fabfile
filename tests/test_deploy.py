@@ -5,7 +5,7 @@ import fudge
 import copy
 from fabric.api import local, settings, env, sudo, lcd
 
-from ..deploy import BaseDeployment, GitRepository
+from ..deploy import BaseDeployment, GitRepository, BranchMergeDeployment
 from ..operations import FetchOperation, RebaseOperation, MergeOperation, PushOperation
 from ..exceptions import MergeFailedException, PullFailedException, FetchFailedException
 from ..testcases import SimpleTestCase
@@ -129,6 +129,21 @@ class TestBaseDeployment(GitTestingHelperMixin, TestCleanCodeRepositoryMixin, Si
         commit_name = self.change_remote_repository(branch_name = self.other_branch)
 
         BaseDeployment(scm_url = self.scm_url, scm_branch = self.other_branch, code_directory = self.code_directory).start()
+
+        with lcd(self.code_directory):
+            recent_commit_msgs = local("git log --oneline -2", capture = True)
+        self.assertIn(commit_name, recent_commit_msgs)
+
+
+class TestBranchMergeDeployment(GitTestingHelperMixin, TestCleanCodeRepositoryMixin, SimpleTestCase):
+
+    def setUp(self):
+        self.deployment = BranchMergeDeployment(code_directory = self.code_directory, scm_url = self.scm_url, scm_branch = self.scm_branch, other_branch = self.other_branch)
+
+    def test_merges_other_branch_into_current_one(self):
+        commit_name = self.change_remote_repository(branch_name = self.other_branch)
+
+        self.deployment.start()
 
         with lcd(self.code_directory):
             recent_commit_msgs = local("git log --oneline -2", capture = True)
