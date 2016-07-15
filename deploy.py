@@ -131,7 +131,7 @@ def deploy(source_branch, issue_id):
 class GitRepository(object):
 
     @classmethod
-    def clone(cls, scm_url, code_directory, scm_branch = None, branch_hint = None):
+    def clone(cls, code_directory, scm_url, scm_branch = None, branch_hint = None):
         local("mkdir -p {0}".format(code_directory))
         local("git clone {0} {1}".format(scm_url, code_directory))
 
@@ -187,5 +187,11 @@ class Deployment(object):
         return not repo_exists.failed
 
     def start(self):
-        if not self.does_local_repo_exists():
-            self.scm_repository_type.clone(self.scm_url, self.code_directory, scm_branch = self.scm_branch, branch_hint = self.branch_hint)
+        repo_initializer = self.scm_repository_type if self.does_local_repo_exists() else self.scm_repository_type.clone
+
+        repository = repo_initializer(
+            code_directory = self.code_directory,
+            scm_url = self.scm_url,
+            scm_branch =  self.scm_branch,
+            branch_hint = self.branch_hint
+        )

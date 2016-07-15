@@ -99,7 +99,7 @@ class GitTestingHelperMixin(object):
         self.change_remote_repository(branch_name)
 
 
-class TestDeployment(TestCleanCodeRepositoryMixin, SimpleTestCase):
+class TestDeployment(GitTestingHelperMixin, TestCleanCodeRepositoryMixin, SimpleTestCase):
 
     def setUp(self):
         self.deployment = Deployment(code_directory = self.code_directory, scm_url = self.scm_url, scm_branch = self.other_branch)
@@ -123,6 +123,16 @@ class TestDeployment(TestCleanCodeRepositoryMixin, SimpleTestCase):
         deployment = Deployment(scm_url = self.scm_url, scm_branch = 'master', code_directory = self.code_directory, scm_repository_type = dummy_repository)
 
         self.assertEqual(deployment.scm_repository_type, dummy_repository)
+
+    def test_updates_local_repo_if_it_already_exists(self):
+        self.create_local_repo()
+        commit_name = self.change_remote_repository(branch_name = self.other_branch)
+
+        Deployment(scm_url = self.scm_url, scm_branch = self.other_branch, code_directory = self.code_directory).start()
+
+        with lcd(self.code_directory):
+            recent_commit_msgs = local("git log --oneline -2", capture = True)
+        self.assertIn(commit_name, recent_commit_msgs)
 
 
 class TestDeploymentWithBranchHint(GitTestingHelperMixin, TestCleanCodeRepositoryMixin, SimpleTestCase):
