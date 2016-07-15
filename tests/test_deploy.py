@@ -311,6 +311,14 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, Sim
 
         self.assertIn(commit_name, recent_commit_msgs)
 
+    def test_raises_error_if_both_scm_branch_and_branch_hint_are_missing(self):
+        with self.assertRaises(ValueError):
+            self.repository.merge()
+
+    def test_raises_error_if_both_scm_branch_and_branch_hint_are_provided(self):
+        with self.assertRaises(ValueError):
+            self.repository.merge(other_branch = self.other_branch, other_branch_hint = self.other_branch)
+
     def test_raises_exception_if_merge_fails(self):
         self.make_conflicting_change(self.other_branch)
 

@@ -157,8 +157,10 @@ class GitRepository(object):
             local("git checkout -f {0}".format(branch_name))
 
     def merge(self, other_branch = None, other_branch_hint = None):
-        self.refresh()
+        if not operator.xor(bool(other_branch), bool(other_branch_hint)):
+            raise ValueError("One and only one of the `other_branch` and `other_branch_hint` must be provided.")
 
+        self.refresh()
         other_branch = other_branch or self.guess_branch_name(other_branch_hint)
 
         with lcd(self.code_directory):
