@@ -209,6 +209,7 @@ class BranchMergeDeployment(BaseDeployment):
 
     def start(self):
         repository = super(BranchMergeDeployment, self).start()
-
         repository.merge(other_branch = self.other_branch, other_branch_hint = self.other_branch_hint)
+        repository.push()
+
 

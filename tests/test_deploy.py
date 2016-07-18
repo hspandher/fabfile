@@ -159,6 +159,16 @@ class TestBranchMergeDeployment(GitTestingHelperMixin, TestCleanCodeRepositoryMi
             recent_commit_msgs = local("git log --oneline -2", capture = True)
         self.assertIn(commit_name, recent_commit_msgs)
 
+    def test_push_changes_after_merging_other_branch(self):
+        deployment = BranchMergeDeployment(code_directory = self.code_directory, scm_url = self.scm_url, scm_branch = self.scm_branch, other_branch_hint = self.other_branch[-7:-3])
+        commit_name = self.change_remote_repository(branch_name = self.other_branch)
+
+        deployment.start()
+
+        with lcd(self.code_directory):
+            recent_commit_msgs = local("git log origin/{} --oneline -2".format(self.scm_branch), capture = True)
+        self.assertIn(commit_name, recent_commit_msgs)
+
 
 class TestGitRepositoryClassMethods(TestCleanCodeRepositoryMixin, SimpleTestCase):
 
