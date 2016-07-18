@@ -2,6 +2,7 @@
 import datetime
 import operator
 import requests
+import contextlib
 
 # third party imports
 from fabric.api import local, settings, lcd, sudo, env
@@ -128,6 +129,22 @@ def deploy(source_branch, issue_id):
             push(source_branch)
 
 
+class atomic_transaction(object):
+
+    def __init__(self, code_directory):
+        self.code_directory = code_directory
+
+    def __enter__(self):
+        with lcd(self.code_directory):
+            self.tag_name = datetime.datetime.now().strftime("%d-%m-%y-%H-%M-%s")
+            local("git tag {0}".format(self.tag_name))
+
+    def __exit__(self, type, value, traceback):
+        with lcd(self.code_directory):
+            local("git reset --hard {0}".format(self.tag_name))
+            local("git tag -d {0}".format(self.tag_name))
+
+
 class GitRepository(object):
 
     @classmethod
@@ -169,6 +186,9 @@ class GitRepository(object):
     def push(self):
         PushOperation(self.code_directory, scm_branch = self.scm_branch)()
 
+    def as_atomic_transaction(self):
+        return atomic_transaction(self.code_directory)
+
 
 class BaseDeployment(object):
 
@@ -208,8 +228,8 @@ class BranchMergeDeployment(BaseDeployment):
         self.other_branch_hint = other_branch_hint
 
     def start(self):
-        repository = super(BranchMergeDeployment, self).start()
-        repository.merge(other_branch = self.other_branch, other_branch_hint = self.other_branch_hint)
-        repository.push()
+        repo = super(BranchMergeDeployment, self).start()
+        repo.merge(other_branch = self.other_branch, other_branch_hint = self.other_branch_hint)
+        repo.push()
 
 

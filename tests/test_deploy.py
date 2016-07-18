@@ -348,6 +348,28 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, Sim
     def test_guess_branch_name(self):
         self.assertEqual(self.repository.guess_branch_name(branch_hint = self.other_branch[-8:-3]), self.other_branch)
 
+    def test_as_atomic_transaction_reverts_changes_if_error_occurs(self):
+        try:
+            with self.repository.as_atomic_transaction():
+                commit_name = self.change_local_repository()
+                raise FetchFailedException('Temp error')
+        except FetchFailedException:
+            pass
+
+        with lcd(self.code_directory):
+            last_commit_msg = local("git log --oneline -1".format(self.scm_branch), capture = True)
+        self.assertNotIn(commit_name, last_commit_msg)
+
+    def test_deletes_tag_after_reverting(self):
+        try:
+            with self.repository.as_atomic_transaction():
+                commit_name = self.change_local_repository()
+                raise FetchFailedException('Temp error')
+        except FetchFailedException:
+            pass
+
+        with lcd(self.code_directory):
+            self.assertFalse(local('git tag', capture = True).strip())
 
 
 
