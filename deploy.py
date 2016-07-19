@@ -140,9 +140,10 @@ class atomic_transaction(object):
             local("git tag {0}".format(self.tag_name))
 
     def __exit__(self, type, value, traceback):
-        with lcd(self.code_directory):
-            local("git reset --hard {0}".format(self.tag_name))
-            local("git tag -d {0}".format(self.tag_name))
+        if isinstance(value, BaseException):
+            with lcd(self.code_directory):
+                local("git reset --hard {0}".format(self.tag_name))
+                local("git tag -d {0}".format(self.tag_name))
 
 
 class GitRepository(object):

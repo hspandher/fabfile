@@ -372,6 +372,15 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, Sim
             self.assertFalse(local('git tag', capture = True).strip())
 
 
+    def test_as_atomic_transaction_does_not_revert_change_if_no_error(self):
+        with self.repository.as_atomic_transaction():
+            commit_name = self.change_local_repository()
+
+        with lcd(self.code_directory):
+            last_commit_msg = local("git log --oneline -1".format(self.scm_branch), capture = True)
+        self.assertIn(commit_name, last_commit_msg)
+
+
 
 
 

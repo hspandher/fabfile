@@ -74,3 +74,11 @@ class BranchNameGuessOperation(GitOperation):
         guess = local("git remote show origin | grep {0}".format(self.parameters['hint']), capture = True)
 
         return guess.strip().split(' ')[0]
+
+
+class TagOperation(GitOperation):
+
+    failure_exception = exceptions.GitFailureException
+
+    def act(self):
+        local("git tag {0}".format(self.tag_name))
