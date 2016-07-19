@@ -279,6 +279,14 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, Sim
 
         self.other_branch = 'quality_assurance'
 
+    def commit_erroneous_change(self):
+        try:
+            with self.repository.as_atomic_transaction():
+                commit_name = self.change_local_repository()
+                raise FetchFailedException('Temp error')
+        except FetchFailedException:
+            return commit_name
+
     def test_refresh_repository(self):
         commit_name = self.change_remote_repository()
 
@@ -349,28 +357,17 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, Sim
         self.assertEqual(self.repository.guess_branch_name(branch_hint = self.other_branch[-8:-3]), self.other_branch)
 
     def test_as_atomic_transaction_reverts_changes_if_error_occurs(self):
-        try:
-            with self.repository.as_atomic_transaction():
-                commit_name = self.change_local_repository()
-                raise FetchFailedException('Temp error')
-        except FetchFailedException:
-            pass
+        commit_name = self.commit_erroneous_change()
 
         with lcd(self.code_directory):
             last_commit_msg = local("git log --oneline -1".format(self.scm_branch), capture = True)
         self.assertNotIn(commit_name, last_commit_msg)
 
     def test_deletes_tag_after_reverting(self):
-        try:
-            with self.repository.as_atomic_transaction():
-                commit_name = self.change_local_repository()
-                raise FetchFailedException('Temp error')
-        except FetchFailedException:
-            pass
+        self.commit_erroneous_change()
 
         with lcd(self.code_directory):
             self.assertFalse(local('git tag', capture = True).strip())
-
 
     def test_as_atomic_transaction_does_not_revert_change_if_no_error(self):
         with self.repository.as_atomic_transaction():

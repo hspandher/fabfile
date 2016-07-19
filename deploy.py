@@ -129,19 +129,22 @@ def deploy(source_branch, issue_id):
             push(source_branch)
 
 
-class atomic_transaction(object):
+class AtomicTransaction(object):
 
-    def __init__(self, code_directory):
+    def __init__(self, code_directory, tag_operation, revert_tag_operation, delete_tag_operation):
         self.code_directory = code_directory
+        self.tag_operation = tag_operation
+        self.revert_tag_operation = revert_tag_operation
+        self.delete_tag_operation = delete_tag_operation
 
     def __enter__(self):
         self.tag_name = datetime.datetime.now().strftime("%d-%m-%y-%H-%M-%s")
-        TagOperation(self.code_directory, tag_name = self.tag_name)()
+        self.tag_operation(self.code_directory, tag_name = self.tag_name)()
 
     def __exit__(self, type, value, traceback):
         if isinstance(value, BaseException):
-            RevertTagOperation(self.code_directory, tag_name = self.tag_name)()
-            DeleteTagOperation(self.code_directory, tag_name = self.tag_name)()
+            self.revert_tag_operation(self.code_directory, tag_name = self.tag_name)()
+            self.delete_tag_operation(self.code_directory, tag_name = self.tag_name)()
 
 
 class GitRepository(object):
@@ -186,7 +189,7 @@ class GitRepository(object):
         PushOperation(self.code_directory, scm_branch = self.scm_branch)()
 
     def as_atomic_transaction(self):
-        return atomic_transaction(self.code_directory)
+        return AtomicTransaction(self.code_directory, tag_operation = TagOperation, revert_tag_operation = RevertTagOperation, delete_tag_operation = DeleteTagOperation)
 
 
 class BaseDeployment(object):
