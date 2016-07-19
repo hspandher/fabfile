@@ -81,4 +81,20 @@ class TagOperation(GitOperation):
     failure_exception = exceptions.GitFailureException
 
     def act(self):
-        local("git tag {0}".format(self.tag_name))
+        local("git tag {0}".format(self.parameters['tag_name']))
+
+
+class RevertTagOperation(GitOperation):
+
+    failure_exception = exceptions.GitFailureException
+
+    def act(self):
+        local("git reset --hard {0}".format(self.parameters['tag_name']))
+
+
+class DeleteTagOperation(GitOperation):
+
+    failure_exception = exceptions.GitFailureException
+
+    def act(self):
+        local("git tag -d {0}".format(self.parameters['tag_name']))

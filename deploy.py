@@ -9,7 +9,7 @@ from fabric.api import local, settings, lcd, sudo, env
 
 # local imports
 from . import exceptions
-from .operations import FetchOperation, RebaseOperation, MergeOperation, PushOperation, BranchNameGuessOperation
+from .operations import FetchOperation, RebaseOperation, MergeOperation, PushOperation, BranchNameGuessOperation, TagOperation, RevertTagOperation, DeleteTagOperation
 
 
 code_directory = 'deploy_data/shinecandidate'
@@ -135,15 +135,13 @@ class atomic_transaction(object):
         self.code_directory = code_directory
 
     def __enter__(self):
-        with lcd(self.code_directory):
-            self.tag_name = datetime.datetime.now().strftime("%d-%m-%y-%H-%M-%s")
-            local("git tag {0}".format(self.tag_name))
+        self.tag_name = datetime.datetime.now().strftime("%d-%m-%y-%H-%M-%s")
+        TagOperation(self.code_directory, tag_name = self.tag_name)()
 
     def __exit__(self, type, value, traceback):
         if isinstance(value, BaseException):
-            with lcd(self.code_directory):
-                local("git reset --hard {0}".format(self.tag_name))
-                local("git tag -d {0}".format(self.tag_name))
+            RevertTagOperation(self.code_directory, tag_name = self.tag_name)()
+            DeleteTagOperation(self.code_directory, tag_name = self.tag_name)()
 
 
 class GitRepository(object):
