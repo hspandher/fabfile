@@ -42,7 +42,7 @@ class TestCleanCodeRepositoryMixin(object):
         local("rm -Rf {0}".format(self.remote_directory))
         local("cp -Rf {0} {1}".format(self.remote_repo_backup, self.remote_directory))
 
-        super(TestCleanCodeRepositoryMixin, self).tearDown()
+        super().tearDown()
 
 
 class GitTestingHelperMixin(object):
