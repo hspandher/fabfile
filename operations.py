@@ -22,7 +22,7 @@ class GitOperation(object):
             raise self.failure_exception(**self.get_exception_params(exp))
 
     def get_exception_params(self, exception):
-        return dict(self.parameters, **{'error': exception.message})
+        return dict(self.parameters, **{'error': str(exception)})
 
     def revert(self):
         pass
