@@ -231,7 +231,9 @@ class BranchMergeDeployment(BaseDeployment):
 
     def start(self):
         repo = super(BranchMergeDeployment, self).start()
-        repo.merge(other_branch = self.other_branch, other_branch_hint = self.other_branch_hint)
-        repo.push()
+
+        with repo.as_atomic_transaction():
+            repo.merge(other_branch = self.other_branch, other_branch_hint = self.other_branch_hint)
+            repo.push()
 
 
