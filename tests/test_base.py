@@ -20,13 +20,17 @@ class TestCleanCodeRepositoryMixin(object):
     scm_branch = 'master'
     other_branch = 'quality_assurance'
     remote_repo_backup = os.path.join(os.path.dirname(__file__), 'remote_repo_backup')
+    path_to_git_index = os.path.join(os.path.dirname(__file__), 'git_index_backup')
 
     def _pre_setup(self):
         with settings(warn_only = True):
             repo_exists = local("test -d {0}".format(self.remote_directory))
+            git_index_exists = local("test -d {0}".format(os.path.join(self.remote_repo_backup, '.git')))
 
             if repo_exists.failed:
                 local("cp -Rf {0} {1}".format(self.remote_repo_backup, self.remote_directory))
+            if git_index_exists.failed:
+                local("cp -Rf {0} {1}".format(self.path_to_git_index, os.path.join(self.remote_repo_backup, '.git')))
 
         with lcd(self.remote_repo_backup):
             local('git config --bool core.bare true')

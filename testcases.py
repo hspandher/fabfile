@@ -13,12 +13,10 @@ class SimpleTestCase(unittest.TestCase):
     """
 
     def __call__(self, result=None):
-        cleanup_successful = self.perform_cleanup(cleanup_method = self._pre_setup, result = result)
-        if not cleanup_successful:
-            return
-
         try:
-            super().__call__(result)
+            cleanup_successful = self.perform_cleanup(cleanup_method = self._pre_setup, result = result)
+            if cleanup_successful:
+                super().__call__(result)
         finally:
             self.perform_cleanup(cleanup_method = self._post_teardown, result = result)
 
