@@ -18,7 +18,7 @@ class SimpleTestCase(unittest.TestCase):
             return
 
         try:
-            super(SimpleTestCase, self).__call__(result)
+            super().__call__(result)
         finally:
             self.perform_cleanup(cleanup_method = self._post_teardown, result = result)
 
