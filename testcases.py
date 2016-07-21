@@ -13,14 +13,16 @@ class SimpleTestCase(unittest.TestCase):
     """
 
     def __call__(self, result=None):
-        cleanup_successful = self.perform_cleanup(cleanup_method = self._pre_setup)
+        cleanup_successful = self.perform_cleanup(cleanup_method = self._pre_setup, result = result)
         if not cleanup_successful:
             return
 
-        super(SimpleTestCase, self).__call__(result)
-        self.perform_cleanup(cleanup_method = self._post_teardown)
+        try:
+            super(SimpleTestCase, self).__call__(result)
+        finally:
+            self.perform_cleanup(cleanup_method = self._post_teardown, result = result)
 
-    def perform_cleanup(self, cleanup_method):
+    def perform_cleanup(self, cleanup_method, result):
         testMethod = getattr(self, self._testMethodName)
         skipped = (getattr(self.__class__, "__unittest_skip__", False) or
             getattr(testMethod, "__unittest_skip__", False))

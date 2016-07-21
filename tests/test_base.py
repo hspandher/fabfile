@@ -22,6 +22,12 @@ class TestCleanCodeRepositoryMixin(object):
     remote_repo_backup = os.path.join(os.path.dirname(__file__), 'remote_repo_backup')
 
     def _pre_setup(self):
+        with settings(warn_only = True):
+            repo_exists = local("test -d {0}".format(self.remote_directory))
+
+            if repo_exists.failed:
+                local("cp -Rf {0} {1}".format(self.remote_repo_backup, self.remote_directory))
+
         with lcd(self.remote_repo_backup):
             local('git config --bool core.bare true')
 
@@ -41,8 +47,6 @@ class TestCleanCodeRepositoryMixin(object):
         local("rm -Rf {0}".format(self.code_directory))
         local("rm -Rf {0}".format(self.remote_directory))
         local("cp -Rf {0} {1}".format(self.remote_repo_backup, self.remote_directory))
-
-        super().tearDown()
 
 
 class GitTestingHelperMixin(object):
