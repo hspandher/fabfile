@@ -6,6 +6,15 @@ import fudge
 import copy
 from fabric.api import local, settings, env, sudo, lcd
 
+from .. import common
+from .. import base
+from .. import operations
+
+executor = common.Executor(remote = False)
+common.executor = executor
+base.executor = executor
+operations.executor = executor
+
 from ..base import BaseDeployment, GitRepository, BranchMergeDeployment
 from ..operations import FetchOperation, RebaseOperation, MergeOperation, PushOperation
 from ..exceptions import MergeFailedException, PullFailedException, FetchFailedException
