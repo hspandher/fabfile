@@ -9,6 +9,7 @@ from fabric.api import local, settings, lcd, sudo, env
 
 # local imports
 from . import exceptions
+from .common import executor
 from .operations import FetchOperation, RebaseOperation, MergeOperation, PushOperation, BranchNameGuessOperation, TagOperation, RevertTagOperation, DeleteTagOperation
 
 
@@ -34,8 +35,8 @@ class GitRepository(object):
 
     @classmethod
     def clone(cls, code_directory, scm_url, scm_branch):
-        local("mkdir -p {0}".format(code_directory))
-        local("git clone {0} {1}".format(scm_url, code_directory))
+        executor.run("mkdir -p {0}".format(code_directory))
+        executor.run("git clone {0} {1}".format(scm_url, code_directory))
 
         return cls(code_directory, scm_url, scm_branch)
 
@@ -55,8 +56,8 @@ class GitRepository(object):
         RebaseOperation(self.code_directory, scm_branch = self.scm_branch)()
 
     def checkout_branch(self, branch_name):
-        with lcd(self.code_directory):
-            local("git checkout -f {0}".format(branch_name))
+        with executor.cd(self.code_directory):
+            executor.run("git checkout -f {0}".format(branch_name))
 
     def merge(self, other_branch = None, other_branch_hint = None):
         if not operator.xor(bool(other_branch), bool(other_branch_hint)):
@@ -65,7 +66,7 @@ class GitRepository(object):
         self.refresh()
         other_branch = other_branch or self.guess_branch_name(other_branch_hint)
 
-        with lcd(self.code_directory):
+        with executor.cd(self.code_directory):
             MergeOperation(self.code_directory, scm_branch = self.scm_branch, other_branch = other_branch)()
 
     def push(self):
@@ -87,7 +88,7 @@ class BaseDeployment(object):
 
     def does_local_repo_exists(self):
         with settings(warn_only = True):
-            repo_exists = local("test -d {0}".format(self.code_directory))
+            repo_exists = executor.run("test -d {0}".format(self.code_directory))
 
         return not repo_exists.failed
 

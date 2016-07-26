@@ -1,6 +1,7 @@
 from fabric.api import local, settings, lcd
 
 from . import exceptions
+from .common import executor
 
 
 class GitOperation(object):
@@ -10,7 +11,7 @@ class GitOperation(object):
         self.parameters = parameters
 
     def __call__(self):
-        with lcd(self.code_directory):
+        with executor.cd(self.code_directory):
             return self.operate()
 
     def operate(self):
@@ -33,7 +34,7 @@ class FetchOperation(GitOperation):
     failure_exception = exceptions.FetchFailedException
 
     def act(self):
-        local('git fetch')
+        executor.run('git fetch')
 
 
 class RebaseOperation(GitOperation):
@@ -41,10 +42,10 @@ class RebaseOperation(GitOperation):
     failure_exception = exceptions.PullFailedException
 
     def act(self):
-        local("git rebase origin/{0}".format(self.parameters['scm_branch']))
+        executor.run("git rebase origin/{0}".format(self.parameters['scm_branch']))
 
     def revert(self):
-        local('git rebase --abort')
+        executor.run('git rebase --abort')
 
 
 class MergeOperation(GitOperation):
@@ -52,10 +53,10 @@ class MergeOperation(GitOperation):
     failure_exception = exceptions.MergeFailedException
 
     def act(self):
-        local("git merge --no-edit origin/{0}".format(self.parameters['other_branch']))
+        executor.run("git merge --no-edit origin/{0}".format(self.parameters['other_branch']))
 
     def revert(self):
-        local('git checkout -f')
+        executor.run('git checkout -f')
 
 
 class PushOperation(GitOperation):
@@ -63,7 +64,7 @@ class PushOperation(GitOperation):
     failure_exception = exceptions.PushFailedException
 
     def act(self):
-        local("git push origin {0}".format(self.parameters['scm_branch']))
+        executor.run("git push origin {0}".format(self.parameters['scm_branch']))
 
 
 class BranchNameGuessOperation(GitOperation):
@@ -71,7 +72,7 @@ class BranchNameGuessOperation(GitOperation):
     failure_exception = exceptions.IssueBranchNotFoundException
 
     def act(self):
-        guess = local("git remote show origin | grep {0}".format(self.parameters['hint']), capture = True)
+        guess = executor.run("git remote show origin | grep {0}".format(self.parameters['hint']), capture = True)
 
         return guess.strip().split(' ')[0]
 
@@ -81,7 +82,7 @@ class TagOperation(GitOperation):
     failure_exception = exceptions.GitFailureException
 
     def act(self):
-        local("git tag {0}".format(self.parameters['tag_name']))
+        executor.run("git tag {0}".format(self.parameters['tag_name']))
 
 
 class RevertTagOperation(GitOperation):
@@ -89,7 +90,7 @@ class RevertTagOperation(GitOperation):
     failure_exception = exceptions.GitFailureException
 
     def act(self):
-        local("git reset --hard {0}".format(self.parameters['tag_name']))
+        executor.run("git reset --hard {0}".format(self.parameters['tag_name']))
 
 
 class DeleteTagOperation(GitOperation):
@@ -97,4 +98,4 @@ class DeleteTagOperation(GitOperation):
     failure_exception = exceptions.GitFailureException
 
     def act(self):
-        local("git tag -d {0}".format(self.parameters['tag_name']))
+        executor.run("git tag -d {0}".format(self.parameters['tag_name']))
