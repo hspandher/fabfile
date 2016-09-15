@@ -1,5 +1,5 @@
 from .base import BranchMergeDeployment
-from . import config
+from .configuration import config
 
 def qa_deploy(issue_branch_hint):
     BranchMergeDeployment(

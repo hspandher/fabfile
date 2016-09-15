@@ -1,12 +1,16 @@
 from fabric.api import local, run, lcd, cd
 
-from . import config
+from .configuration import config
 
 
 class Executor(object):
 
-    def __init__(self, remote):
-        self.remote = remote
+    def __init__(self, is_remote_func):
+        self.is_remote_func = is_remote_func
+
+    @property
+    def remote(self):
+        return self.is_remote_func()
 
     def run(self, *args, **kwargs):
         if self.remote:
@@ -23,4 +27,4 @@ class Executor(object):
         return command(*args, **kwargs)
 
 
-executor = Executor(remote = config.REMOTE_DEPLOYMENT)
+executor = Executor(is_remote_func = lambda : config.REMOTE_DEPLOYMENT)

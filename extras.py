@@ -17,6 +17,5 @@ def send_mail(to_address, subject, message, from_address = config.SERVER_EMAIL, 
 
     body.attach(MIMEText(message, message_type))
 
-    import ipdb; ipdb.set_trace()
     with smtplib.SMTP(host = config.EMAIL_HOST, port = config.EMAIL_PORT) as smtp_server:
         return smtp_server.sendmail(from_address, to_address, body.as_string())
