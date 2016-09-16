@@ -2,7 +2,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from . import config
+from configuration import config
 
 def send_mail(to_address, subject, message, from_address = config.SERVER_EMAIL, is_html = False):
     smtp_server = smtplib.SMTP(host = config.EMAIL_HOST, port = config.EMAIL_PORT)

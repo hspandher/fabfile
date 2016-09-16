@@ -10,3 +10,5 @@ STAGING_BRANCH_NAME = 'staging'
 EMAIL_HOST = '172.22.65.145'
 EMAIL_PORT = 25
 SERVER_EMAIL = 'Shine Deployment <noreply@noone.com>'
+
+PROJECT_NAME = 'fabfile'
