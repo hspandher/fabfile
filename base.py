@@ -66,8 +66,7 @@ class GitRepository(object):
         self.refresh()
         other_branch = other_branch or self.guess_branch_name(other_branch_hint)
 
-        with executor.cd(self.code_directory):
-            MergeOperation(self.code_directory, scm_branch = self.scm_branch, other_branch = other_branch)()
+        MergeOperation(self.code_directory, scm_branch = self.scm_branch, other_branch = other_branch)()
 
     def push(self):
         PushOperation(self.code_directory, scm_branch = self.scm_branch)()
@@ -119,5 +118,3 @@ class BranchMergeDeployment(BaseDeployment):
         with repo.as_atomic_transaction():
             repo.merge(other_branch = self.other_branch, other_branch_hint = self.other_branch_hint)
             repo.push()
-
-
