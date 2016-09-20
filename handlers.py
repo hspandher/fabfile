@@ -38,11 +38,18 @@ class DeploymentStatusHandler:
 
     def __exit__(self, type, value, traceback):
         if isinstance(value, exceptions.GitFailureException):
-            self.old_assignee = self.redmine.user.filter(name = self.old_assignee_email)[0]
-            self.redmine.issue.update(self.issue_id, status_id = config.REDMINE_STATUS_MAPPING['new'], assigned_to_id = self.old_assignee.id)
-            send_mail(self.old_assignee_email, self.FAILURE_SUBJECT, value.detail)
+            update_data = {
+                'status_id': config.REDMINE_STATUS_MAPPING['new'],
+                'assigned_to_id': self.redmine.user.filter(name = self.old_assignee_email)[0].id
+            }
+
+            mail_data = (self.old_assignee_email, self.FAILURE_SUBJECT, value.detail)
         else:
-            self.new_assignee = self.redmine.user.filter(name = self.new_assignee_email)[0]
-            self.redmine.issue.update(self.issue_id, assigned_to_id = self.new_assignee.id)
-            send_mail(self.old_assignee_email, self.SUCCESS_SUBJECT, self.success_message)
+            update_data = {
+                'assigned_to_id': self.redmine.user.filter(name = self.new_assignee_email)[0].id
+            }
+            mail_data = (self.old_assignee_email, self.SUCCESS_SUBJECT, self.success_message)
+
+        self.redmine.issue.update(self.issue_id, **update_data)
+        send_mail(*mail_data)
 
