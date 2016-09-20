@@ -12,3 +12,12 @@ EMAIL_PORT = 25
 SERVER_EMAIL = 'Shine Deployment <noreply@noone.com>'
 
 PROJECT_NAME = 'fabfile'
+
+REDMINE_STATUS_MAPPING = {
+    'new': 1,
+    'in_progress': 2,
+    'resolved': 3,
+    'feedback': 4,
+    'closed': 5,
+    'rejected': 6
+}

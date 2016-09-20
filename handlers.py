@@ -22,17 +22,27 @@ class DeploymentStatusHandler:
     SUCCESS_SUBJECT = "Deployment Successful"
     FAILURE_SUBJECT = "Deployment Failure"
 
-    def __init__(self, issue_id, assignee_email, success_message = 'Deployment Successful'):
+    REDMINE_HOST = config.REDMINE_HOST
+    REDMINE_KEY = config.REDMINE_KEY
+
+    def __init__(self, issue_id, old_assignee_email, new_assignee_email, success_message = 'Deployment Successful'):
         self.issue_id = issue_id
-        self.assignee_email = assignee_email
+        self.old_assignee_email = old_assignee_email
+        self.new_assignee_email = new_assignee_email
         self.success_message = success_message
+
+        self.redmine = Redmine(self.REDMINE_HOST, key = self.REDMINE_KEY)
 
     def __enter__(self):
         pass
 
     def __exit__(self, type, value, traceback):
         if isinstance(value, exceptions.GitFailureException):
-            send_mail(self.assignee_email, self.FAILURE_SUBJECT, value.detail)
+            self.old_assignee = self.redmine.user.filter(name = self.old_assignee_email)[0]
+            self.redmine.issue.update(self.issue_id, status_id = config.REDMINE_STATUS_MAPPING['new'], assigned_to_id = self.old_assignee.id)
+            send_mail(self.old_assignee_email, self.FAILURE_SUBJECT, value.detail)
         else:
-            send_mail(self.assignee_email, self.SUCCESS_SUBJECT, self.success_message)
+            self.new_assignee = self.redmine.user.filter(name = self.new_assignee_email)[0]
+            self.redmine.issue.update(self.issue_id, assigned_to_id = self.new_assignee.id)
+            send_mail(self.old_assignee_email, self.SUCCESS_SUBJECT, self.success_message)
 

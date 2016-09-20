@@ -1,6 +1,8 @@
+import contextlib
 import fudge
-from fudge import inspector
 import os
+import sys
+from fudge import inspector
 from redmine import Redmine
 
 from .. import exceptions
@@ -8,14 +10,7 @@ from ..testcases import SimpleTestCase
 from ..configuration import config
 from ..handlers import RedmineAccount, DeploymentStatusHandler
 
-REDMINE_STATUS_MAPPINGS = {
-    'new': 1,
-    'in_progress': 2,
-    'resolved': 3,
-    'feedback': 4,
-    'closed': 5,
-    'rejected': 6
-}
+REDMINE_STATUS_MAPPING = config.REDMINE_STATUS_MAPPING
 
 
 class RedmineTestCase(SimpleTestCase):
@@ -29,13 +24,33 @@ class RedmineTestCase(SimpleTestCase):
         redmine.issue.all().delete()
         redmine.user.all()[1:].delete()
 
+@contextlib.contextmanager
+def exception_handler(exception):
+    try:
+        yield
+    except exception:
+        pass
 
-class TestRedmineAccount(RedmineTestCase):
+
+class TestDeploymentStatusHandler(RedmineTestCase):
 
     REDMINE_HOST = 'http://localhost:3000'
     REDMINE_KEY = config.REDMINE_KEY
 
     def setUp(self):
+        self.create_redmine_issue()
+        self.assignee_email = self.user.mail
+        self.success_message = 'Deployment successful'
+        self.error_message = 'Conflict while merging'
+
+        self.patch = fudge.patch("{0}.handlers.send_mail".format(config.PROJECT_NAME))
+        self.mock_send_mail = self.patch.__enter__()
+        self.mock_send_mail.is_callable()
+
+    def tearDown(self):
+        self.patch.__exit__(*sys.exc_info())
+
+    def create_redmine_issue(self):
         self.redmine = Redmine(self.REDMINE_HOST, key = self.REDMINE_KEY)
 
         self.project_data = {
@@ -58,45 +73,55 @@ class TestRedmineAccount(RedmineTestCase):
         self.issue_data = {
             'project_id': self.project.id,
             'subject': 'Temp Issue',
-            'status_id': REDMINE_STATUS_MAPPINGS['new'],
+            'status_id': REDMINE_STATUS_MAPPING['resolved'],
             'assigned_to_id': self.user.id
         }
 
         self.issue = self.redmine.issue.create(**self.issue_data)
 
-        self.redmine_account = RedmineAccount(issue_id = self.issue.id)
+        self.issue.status_id = REDMINE_STATUS_MAPPING['resolved'] # in case you are wondering status_id doesn't work in create
 
-    # def test_change_issue(self):
-    #     self.redmine_account.change_issue(status_id = REDMINE_STATUS_MAPPINGS['resolved'], assigned_to_id = self.user2.id)
+        self.issue.save()
 
-    #     changed_issue = self.redmine.issue.get(issue_id = self.issue.id)
+        self.redmine.project_membership.create(project_id = self.project.id, user_id = self.user.id, role_ids = [3, 4])
+        self.redmine.project_membership.create(project_id = self.project.id, user_id = self.user2.id, role_ids = [3, 4])
 
-    #     self.assertEqual(changed_issue.status_id, REDMINE_STATUS_MAPPINGS['resolved'])
-    #     self.assertEqual(changed_issue.assigned_to_id, self.user2.id)
+    def test_sends_mail_when_deployment_fails(self):
+        self.mock_send_mail.expects_call().with_args(self.assignee_email, inspector.arg.any(), inspector.arg.contains(self.error_message)).times_called(1)
 
+        with exception_handler(exceptions.MergeFailedException):
+            with DeploymentStatusHandler(issue_id = self.issue.id, old_assignee_email = self.assignee_email, new_assignee_email = self.user2.mail, success_message = ''):
+                raise exceptions.MergeFailedException('staging', 'issue_12345', self.error_message)
 
-class TestDeploymentStatusHandler(SimpleTestCase):
+    def test_sends_success_mail_when_deployment_is_successful(self):
+        self.mock_send_mail.expects_call().with_args(self.assignee_email, DeploymentStatusHandler.SUCCESS_SUBJECT, inspector.arg.contains(self.success_message)).times_called(1)
 
-    def setUp(self):
-        self.issue_id = '12345'
-        self.assignee_email = 'no-one@someone.com'
-        self.assignee_email = 'hspandher@outlook.com'
-        self.success_message = 'Deployment successful'
-
-    @fudge.patch("{0}.handlers.send_mail".format(config.PROJECT_NAME))
-    def test_sends_mail_when_deployment_fails(self, mock_send_mail):
-        error_message = 'Conflict while merging'
-        mock_send_mail.expects_call().with_args(self.assignee_email, inspector.arg.any(), inspector.arg.contains(error_message)).times_called(1)
-
-        try:
-            with DeploymentStatusHandler(issue_id = self.issue_id, assignee_email = self.assignee_email, success_message = ''):
-                raise exceptions.MergeFailedException('staging', 'issue_12345', error_message)
-        except exceptions.MergeFailedException:
+        with DeploymentStatusHandler(issue_id = self.issue.id, old_assignee_email = self.assignee_email, new_assignee_email = self.user2.mail, success_message = self.success_message):
             pass
 
-    @fudge.patch("{0}.handlers.send_mail".format(config.PROJECT_NAME))
-    def test_does_not_send_mail_when_deployment_is_successful(self, mock_send_mail):
-        mock_send_mail.expects_call().with_args(self.assignee_email, DeploymentStatusHandler.SUCCESS_SUBJECT, inspector.arg.contains(self.success_message)).times_called(1)
+    def test_reopen_issue_when_deployment_fails(self):
+        with exception_handler(exceptions.MergeFailedException):
+            with DeploymentStatusHandler(issue_id = self.issue.id, old_assignee_email = self.assignee_email, new_assignee_email = self.user2.mail, success_message = ''):
+                raise exceptions.MergeFailedException('staging', 'issue_12345', self.error_message)
 
-        with DeploymentStatusHandler(issue_id = self.issue_id, assignee_email = self.assignee_email, success_message = self.success_message):
+        self.assertEqual(self.redmine.issue.get(self.issue.id).status.id, REDMINE_STATUS_MAPPING['new'])
+
+    def test_keeps_issue_assigned_to_old_assignee_if_deployment_fails(self):
+        with exception_handler(exceptions.MergeFailedException):
+            with DeploymentStatusHandler(issue_id = self.issue.id, old_assignee_email = self.assignee_email, new_assignee_email = self.user2.mail, success_message = ''):
+                raise exceptions.MergeFailedException('staging', 'issue_12345', self.error_message)
+
+        self.assertEqual(self.redmine.issue.get(self.issue.id).assigned_to.id, self.user.id)
+
+    def test_assigns_issue_to_new_assignee_if_deployment_successful(self):
+        with DeploymentStatusHandler(issue_id = self.issue.id, old_assignee_email = self.assignee_email, new_assignee_email = self.user2.mail, success_message = ''):
             pass
+
+        self.assertEqual(self.redmine.issue.get(self.issue.id).assigned_to.id, self.user2.id)
+
+    def test_assigns_issue_to_old_assignee_if_deployment_fails(self):
+        with exception_handler(exceptions.MergeFailedException):
+            with DeploymentStatusHandler(issue_id = self.issue.id, old_assignee_email = self.user2.mail, new_assignee_email = self.assignee_email, success_message = ''):
+                raise exceptions.MergeFailedException('staging', 'issue_12345', self.error_message)
+
+        self.assertEqual(self.redmine.issue.get(self.issue.id).assigned_to.id, self.user2.id)
