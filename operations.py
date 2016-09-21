@@ -4,7 +4,7 @@ from . import exceptions
 from .common import executor
 
 
-class GitOperation(object):
+class GitOperation:
 
     def __init__(self, code_directory, **parameters):
         self.code_directory = code_directory
@@ -99,3 +99,11 @@ class DeleteTagOperation(GitOperation):
 
     def act(self):
         executor.run("git tag -d {0}".format(self.parameters['tag_name']))
+
+
+class TestOperation(GitOperation):
+
+    failure_exception = exceptions.TestFailureException
+
+    def act(self):
+        executor.run("py.test {0}".format(self.parameters['argument_string']))

@@ -5,7 +5,12 @@
 # local imports
 
 
-class GitFailureException(Exception):
+class DeploymentFailureException(Exception):
+
+    pass
+
+
+class GitFailureException(DeploymentFailureException):
 
     pass
 
@@ -48,3 +53,11 @@ class PushFailedException(GitFailureException):
 
     def __init__(self, scm_branch, error):
         self.detail = self.error_message.format(branch = scm_branch, error = error)
+
+
+class TestFailureException(DeploymentFailureException):
+
+    error_message = "Test/Tests failed - Detail: {error}"
+
+    def __init__(self, argument_string, error):
+        self.detail = self.error_message.format(error = error)

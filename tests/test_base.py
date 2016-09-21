@@ -11,8 +11,8 @@ from .. import base
 from .. import operations
 
 from ..base import BaseDeployment, GitRepository, BranchMergeDeployment
-from ..operations import FetchOperation, RebaseOperation, MergeOperation, PushOperation
-from ..exceptions import MergeFailedException, PullFailedException, FetchFailedException
+from ..operations import FetchOperation, RebaseOperation, MergeOperation, PushOperation, TestOperation
+from ..exceptions import MergeFailedException, PullFailedException, FetchFailedException, DeploymentFailureException
 from ..testcases import SimpleTestCase
 
 
@@ -289,7 +289,6 @@ class TestPushOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, Sim
         self.push_operation()
         self.assertTrue(self.push_operation.failure_exception)
 
-
 class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, SimpleTestCase):
 
     def setUp(self):
@@ -391,8 +390,17 @@ class TestGitRepository(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, Sim
         self.assertIn(commit_name, last_commit_msg)
 
 
+class TestTestOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, SimpleTestCase):
 
+    def setUp(self):
+        self.create_local_repo()
 
+    def test_does_not_raise_exception_when_tests_pass(self):
+        try:
+            TestOperation(code_directory = self.code_directory, argument_string = 'passing_test.py')()
+        except DeploymentFailureException as exp:
+            self.fail("TestOperation should not raise exception for passing tests. Detail - {0}".format(repr(exp)))
 
-
-
+    def test_raises_exception_when_tests_fail(self):
+        with self.assertRaises(DeploymentFailureException):
+            TestOperation(code_directory = self.code_directory, argument_string = 'failing_test.py')()
