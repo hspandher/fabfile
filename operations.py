@@ -4,7 +4,7 @@ from . import exceptions
 from .common import executor
 
 
-class GitOperation:
+class DeploymentOperation:
 
     def __init__(self, code_directory, **parameters):
         self.code_directory = code_directory
@@ -27,6 +27,11 @@ class GitOperation:
 
     def revert(self):
         pass
+
+
+class GitOperation(DeploymentOperation):
+
+    pass
 
 
 class FetchOperation(GitOperation):
@@ -101,7 +106,7 @@ class DeleteTagOperation(GitOperation):
         executor.run("git tag -d {0}".format(self.parameters['tag_name']))
 
 
-class TestOperation(GitOperation):
+class TestOperation(DeploymentOperation):
 
     failure_exception = exceptions.TestFailureException
 

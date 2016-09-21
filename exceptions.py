@@ -57,7 +57,7 @@ class PushFailedException(GitFailureException):
 
 class TestFailureException(DeploymentFailureException):
 
-    error_message = "Test/Tests failed - Detail: {error}"
+    error_message = "Test/Tests failed upon merging {branch} - Detail: {error}"
 
-    def __init__(self, argument_string, error):
-        self.detail = self.error_message.format(error = error)
+    def __init__(self, argument_string, scm_branch, error):
+        self.detail = self.error_message.format(branch = scm_branch, error = error)

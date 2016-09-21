@@ -10,7 +10,7 @@ from fabric.api import local, settings, lcd, sudo, env
 # local imports
 from . import exceptions
 from .common import executor
-from .operations import FetchOperation, RebaseOperation, MergeOperation, PushOperation, BranchNameGuessOperation, TagOperation, RevertTagOperation, DeleteTagOperation
+from .operations import FetchOperation, RebaseOperation, MergeOperation, PushOperation, BranchNameGuessOperation, TagOperation, RevertTagOperation, DeleteTagOperation, TestOperation
 
 
 class AtomicTransaction(object):
@@ -106,15 +106,20 @@ class BaseDeployment(object):
 
 class BranchMergeDeployment(BaseDeployment):
 
-    def __init__(self, code_directory, scm_url, scm_branch, other_branch = None, other_branch_hint = None, scm_repository_type = None):
+    def __init__(self, code_directory, scm_url, scm_branch, other_branch = None, other_branch_hint = None, scm_repository_type = None, test_argument_string = '.'):
         super().__init__(code_directory, scm_url, scm_branch, scm_repository_type)
 
         self.other_branch = other_branch
         self.other_branch_hint = other_branch_hint
+        self.test_argument_string = test_argument_string
 
     def start(self):
         repo = super().start()
 
         with repo.as_atomic_transaction():
             repo.merge(other_branch = self.other_branch, other_branch_hint = self.other_branch_hint)
+            self.run_tests()
             repo.push()
+
+    def run_tests(self):
+        TestOperation(self.code_directory, argument_string = self.test_argument_string, scm_branch = self.scm_branch)()

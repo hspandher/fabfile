@@ -12,7 +12,7 @@ from .. import operations
 
 from ..base import BaseDeployment, GitRepository, BranchMergeDeployment
 from ..operations import FetchOperation, RebaseOperation, MergeOperation, PushOperation, TestOperation
-from ..exceptions import MergeFailedException, PullFailedException, FetchFailedException, DeploymentFailureException
+from ..exceptions import MergeFailedException, PullFailedException, FetchFailedException, DeploymentFailureException, TestFailureException
 from ..testcases import SimpleTestCase
 
 
@@ -159,7 +159,9 @@ class TestBaseDeployment(GitTestingHelperMixin, TestCleanCodeRepositoryMixin, Si
 class TestBranchMergeDeployment(GitTestingHelperMixin, TestCleanCodeRepositoryMixin, SimpleTestCase):
 
     def setUp(self):
-        self.deployment = BranchMergeDeployment(code_directory = self.code_directory, scm_url = self.scm_url, scm_branch = self.scm_branch, other_branch = self.other_branch)
+        self.test_argument_string = 'passing_test.py'
+        self.failing_test_argument = 'failing_test.py'
+        self.deployment = BranchMergeDeployment(code_directory = self.code_directory, scm_url = self.scm_url, scm_branch = self.scm_branch, other_branch = self.other_branch, test_argument_string = self.test_argument_string)
 
     def test_merges_other_branch_into_current_one(self):
         commit_name = self.change_remote_repository(branch_name = self.other_branch)
@@ -171,7 +173,7 @@ class TestBranchMergeDeployment(GitTestingHelperMixin, TestCleanCodeRepositoryMi
         self.assertIn(commit_name, recent_commit_msgs)
 
     def test_merge_other_branch_with_branch_hint_works(self):
-        deployment = BranchMergeDeployment(code_directory = self.code_directory, scm_url = self.scm_url, scm_branch = self.scm_branch, other_branch_hint = self.other_branch[-7:-3])
+        deployment = BranchMergeDeployment(code_directory = self.code_directory, scm_url = self.scm_url, scm_branch = self.scm_branch, other_branch_hint = self.other_branch[-7:-3], test_argument_string = self.test_argument_string)
         commit_name = self.change_remote_repository(branch_name = self.other_branch)
 
         deployment.start()
@@ -181,7 +183,7 @@ class TestBranchMergeDeployment(GitTestingHelperMixin, TestCleanCodeRepositoryMi
         self.assertIn(commit_name, recent_commit_msgs)
 
     def test_push_changes_after_merging_other_branch(self):
-        deployment = BranchMergeDeployment(code_directory = self.code_directory, scm_url = self.scm_url, scm_branch = self.scm_branch, other_branch_hint = self.other_branch[-7:-3])
+        deployment = BranchMergeDeployment(code_directory = self.code_directory, scm_url = self.scm_url, scm_branch = self.scm_branch, other_branch_hint = self.other_branch[-7:-3], test_argument_string = self.test_argument_string)
         commit_name = self.change_remote_repository(branch_name = self.other_branch)
 
         deployment.start()
@@ -189,6 +191,16 @@ class TestBranchMergeDeployment(GitTestingHelperMixin, TestCleanCodeRepositoryMi
         with lcd(self.code_directory):
             recent_commit_msgs = local("git log origin/{} --oneline -2".format(self.scm_branch), capture = True)
         self.assertIn(commit_name, recent_commit_msgs)
+
+    def test_revert_merge_if_tests_fail(self):
+        commit_name = self.change_remote_repository(branch_name = self.other_branch)
+
+        with self.assertRaises(TestFailureException):
+            BranchMergeDeployment(code_directory = self.code_directory, scm_url = self.scm_url, scm_branch = self.scm_branch, other_branch_hint = self.other_branch[-7:-3], test_argument_string = self.failing_test_argument).start()
+
+        with lcd(self.code_directory):
+            recent_commit_msgs = local("git log origin/{} --oneline -2".format(self.scm_branch), capture = True)
+        self.assertNotIn(commit_name, recent_commit_msgs)
 
 
 class TestGitRepositoryClassMethods(TestCleanCodeRepositoryMixin, SimpleTestCase):
@@ -397,10 +409,10 @@ class TestTestOperation(TestCleanCodeRepositoryMixin, GitTestingHelperMixin, Sim
 
     def test_does_not_raise_exception_when_tests_pass(self):
         try:
-            TestOperation(code_directory = self.code_directory, argument_string = 'passing_test.py')()
+            TestOperation(code_directory = self.code_directory, scm_branch = self.scm_branch, argument_string = 'passing_test.py')()
         except DeploymentFailureException as exp:
             self.fail("TestOperation should not raise exception for passing tests. Detail - {0}".format(repr(exp)))
 
     def test_raises_exception_when_tests_fail(self):
         with self.assertRaises(DeploymentFailureException):
-            TestOperation(code_directory = self.code_directory, argument_string = 'failing_test.py')()
+            TestOperation(code_directory = self.code_directory, scm_branch = self.scm_branch, argument_string = 'failing_test.py')()
