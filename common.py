@@ -3,7 +3,7 @@ from fabric.api import local, run, lcd, cd
 from .configuration import config
 
 
-class Executor(object):
+class Executor:
 
     def __init__(self, is_remote_func):
         self.is_remote_func = is_remote_func

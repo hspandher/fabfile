@@ -13,7 +13,7 @@ from .common import executor
 from .operations import FetchOperation, RebaseOperation, MergeOperation, PushOperation, BranchNameGuessOperation, TagOperation, RevertTagOperation, DeleteTagOperation, TestOperation
 
 
-class AtomicTransaction(object):
+class AtomicTransaction:
 
     def __init__(self, code_directory, tag_operation, revert_tag_operation, delete_tag_operation):
         self.code_directory = code_directory
@@ -31,7 +31,7 @@ class AtomicTransaction(object):
             self.delete_tag_operation(self.code_directory, tag_name = self.tag_name)()
 
 
-class GitRepository(object):
+class GitRepository:
 
     @classmethod
     def clone(cls, code_directory, scm_url, scm_branch):
@@ -75,7 +75,7 @@ class GitRepository(object):
         return AtomicTransaction(self.code_directory, tag_operation = TagOperation, revert_tag_operation = RevertTagOperation, delete_tag_operation = DeleteTagOperation)
 
 
-class BaseDeployment(object):
+class BaseDeployment:
 
     scm_repository_type = GitRepository
 

@@ -16,7 +16,7 @@ from ..exceptions import MergeFailedException, PullFailedException, FetchFailedE
 from ..testcases import SimpleTestCase
 
 
-class TestCleanCodeRepositoryMixin(object):
+class TestCleanCodeRepositoryMixin:
 
     code_directory = os.path.join(os.path.dirname(__file__), 'test_deploy_dir/shine')
     remote_directory = os.path.join(os.path.dirname(__file__), 'remote_repo')
@@ -57,7 +57,7 @@ class TestCleanCodeRepositoryMixin(object):
         local("cp -Rf {0} {1}".format(self.remote_repo_backup, self.remote_directory))
 
 
-class GitTestingHelperMixin(object):
+class GitTestingHelperMixin:
 
     def create_local_repo(self):
         local("mkdir -p {0}".format(self.code_directory))
